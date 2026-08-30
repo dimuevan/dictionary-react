@@ -60,6 +60,31 @@ test('shows an error message when the word is not found', async () => {
   expect(screen.queryByRole('heading', { name: 'zzzzqqq' })).not.toBeInTheDocument();
 });
 
+test('says a failed fetch is a connection problem, and offers a retry', async () => {
+  // fetch() rejects with a TypeError when the request never reaches the server.
+  global.fetch = jest.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  render(<App />);
+  search('hello');
+
+  expect(await screen.findByText(/connection problem, not a spelling one/i)).toBeInTheDocument();
+  // The raw browser string never reaches the reader.
+  expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
+
+  global.fetch = jest.fn(() => mockJson([entry()]));
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+  expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
+});
+
+test('offers no retry for a word that simply does not exist', async () => {
+  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  render(<App />);
+  search('zzzzqqq');
+
+  expect(await screen.findByText(/No results for/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+});
+
 test('hides the play button but still shows the phonetic text when there is no audio', async () => {
   global.fetch = jest.fn(() =>
     mockJson([entry({ phonetics: [{ text: '/eɪ/', audio: '' }] })])

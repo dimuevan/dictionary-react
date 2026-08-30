@@ -5,11 +5,40 @@ const API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 const IDLE = { status: 'idle', data: null, error: null };
 
 /**
+ * Failures are classified so the UI can say what actually went wrong: a word
+ * that does not exist and a network that never answered are very different
+ * problems, and only one of them is the reader's spelling.
+ */
+const failure = (kind, message) => {
+  const error = new Error(message);
+  error.kind = kind;
+  return error;
+};
+
+const describe = (error) => {
+  if (error.kind) {
+    return { kind: error.kind, message: error.message };
+  }
+
+  // fetch() rejects with a TypeError when the request never reached the server:
+  // offline, DNS failure, blocked host, CORS. "Failed to fetch" means nothing
+  // to a reader, so it never reaches the screen.
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  return {
+    kind: 'network',
+    message: offline
+      ? 'You appear to be offline'
+      : 'Could not reach the dictionary',
+  };
+};
+
+/**
  * Fetches a word from the dictionary API.
  *
  * `request` is an object `{ term, nonce }` rather than a plain string so that
  * searching the same word twice still triggers a new request: the nonce changes
- * on every submit, which gives the effect a new dependency to react to.
+ * on every submit, which gives the effect a new dependency to react to. That
+ * also makes retrying a failed request a matter of bumping the nonce.
  */
 const useDictionary = (request) => {
   const [state, setState] = useState(IDLE);
@@ -31,12 +60,14 @@ const useDictionary = (request) => {
         const response = await fetch(url, { signal: controller.signal });
 
         if (!response.ok) {
-          throw new Error(response.status === 404 ? 'Word not found' : 'An error occurred');
+          throw response.status === 404
+            ? failure('not-found', 'Word not found')
+            : failure('service', 'The dictionary service is not responding');
         }
 
         const data = await response.json();
         if (!Array.isArray(data) || data.length === 0) {
-          throw new Error('Unexpected data format');
+          throw failure('format', 'This entry came back in an unexpected shape');
         }
 
         setState({
@@ -46,7 +77,7 @@ const useDictionary = (request) => {
         });
       } catch (error) {
         if (error.name === 'AbortError') return; // superseded by a newer search
-        setState({ status: 'error', data: null, error: error.message });
+        setState({ status: 'error', data: null, error: describe(error) });
       }
     };
 

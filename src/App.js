@@ -24,6 +24,35 @@ const getInitialTheme = () => {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 };
 
+/**
+ * What the reader sees in place of the result. Only 'not-found' is about the
+ * word they typed; the rest are our problem, and retrying can fix them.
+ */
+const explain = (error, term) => {
+  switch (error.kind) {
+    case 'not-found':
+      return {
+        text: `No results for “${term}”. Check the spelling and try again.`,
+        canRetry: false,
+      };
+    case 'service':
+      return {
+        text: 'The dictionary service is not responding right now.',
+        canRetry: true,
+      };
+    case 'format':
+      return {
+        text: `“${term}” came back in a shape this app could not read.`,
+        canRetry: true,
+      };
+    default:
+      return {
+        text: `${error.message}. This is a connection problem, not a spelling one.`,
+        canRetry: true,
+      };
+  }
+};
+
 const App = () => {
   const [theme, setTheme] = useState(getInitialTheme);
   const [request, setRequest] = useState({ term: '', nonce: 0 });
@@ -40,12 +69,17 @@ const App = () => {
     setRequest((current) => ({ term: query, nonce: current.nonce + 1 }));
   };
 
+  // Retrying is the same request with a fresh nonce.
+  const handleRetry = () => {
+    setRequest((current) => ({ ...current, nonce: current.nonce + 1 }));
+  };
+
   // Effect to apply class to body element
   useEffect(() => {
     document.body.className = theme;
     try {
       window.localStorage.setItem(THEME_KEY, theme);
-    } catch (error) {
+    } catch (storageError) {
       // ignore write failures; the theme still applies for this session
     }
   }, [theme]);
@@ -63,6 +97,9 @@ const App = () => {
 
     return () => clearTimeout(timer);
   }, [error, request.nonce]);
+
+  const term = request.term.trim();
+  const explanation = error ? explain(error, term) : null;
 
   // Determine the classnames dynamically
   const classNames = `error-message${showErrorClass ? " showError" : ""}`;
@@ -83,14 +120,21 @@ const App = () => {
           </ErrorBoundary>
         )}
         {status === 'error' && (
-          <p className="placeholder-text">
-            No results for “{request.term.trim()}”. Check the spelling and try again.
-          </p>
+          <div className="search-failed">
+            <p className="placeholder-text">{explanation.text}</p>
+            {explanation.canRetry && (
+              <button type="button" className="retry-button" onClick={handleRetry}>
+                Try again
+              </button>
+            )}
+          </div>
         )}
       </div>
 
       {/* Always rendered so screen readers announce the message when it appears */}
-      <p className={classNames} role="status" aria-live="polite">{error || ''}</p>
+      <p className={classNames} role="status" aria-live="polite">
+        {error ? error.message : ''}
+      </p>
     </div>
   );
 };
