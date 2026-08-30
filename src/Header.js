@@ -7,7 +7,7 @@ import { ReactComponent as SunIcon } from './images/icons/sun.svg';
 const Header = ({ onThemeToggle, theme }) => {
   return (
     <header className="header">
-      <a href="/" className="logo--link">
+      <a href={`${process.env.PUBLIC_URL}/`} className="logo--link">
         <div className="logo--text" title="Dictionearch">
           <span className='fulllogo'>Dictionearch</span>
           <span className='monogram'>D</span>
@@ -23,6 +23,7 @@ const Header = ({ onThemeToggle, theme }) => {
                 type="checkbox"
                 checked={theme === 'dark'}
                 onChange={onThemeToggle}
+                aria-label="Toggle dark mode"
             />
             <span className="slider round"></span>
             </label>

@@ -2,73 +2,67 @@ import './App.css'; // Your main CSS file
 
 import React, { useEffect, useState } from 'react';
 
+import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
+import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
+import useDictionary from './useDictionary';
+
+const THEME_KEY = 'dictionearch-theme';
+
+const getInitialTheme = () => {
+  try {
+    const stored = window.localStorage.getItem(THEME_KEY);
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+  } catch (error) {
+    // localStorage can be unavailable (private mode, blocked cookies)
+  }
+
+  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+};
 
 const App = () => {
-  const [theme, setTheme] = useState('light');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [wordData, setWordData] = useState(null);
-  const [error, setError] = useState("");
+  const [theme, setTheme] = useState(getInitialTheme);
+  const [request, setRequest] = useState({ term: '', nonce: 0 });
   const [showErrorClass, setShowErrorClass] = useState(false);
+
+  const { status, data: wordData, error } = useDictionary(request);
 
   const handleThemeToggle = () => {
     setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
   };
 
+  // A new nonce on every submit lets the same word be searched twice in a row.
   const handleSearch = (query) => {
-    setSearchTerm(query);
+    setRequest((current) => ({ term: query, nonce: current.nonce + 1 }));
   };
 
   // Effect to apply class to body element
   useEffect(() => {
     document.body.className = theme;
+    try {
+      window.localStorage.setItem(THEME_KEY, theme);
+    } catch (error) {
+      // ignore write failures; the theme still applies for this session
+    }
   }, [theme]);
 
+  // Show the toast, then slide it away. Keyed on the nonce too, so two searches
+  // that fail the same way still each get their own toast.
   useEffect(() => {
-    if (searchTerm) {
-      // Reset states before a new request
-      setWordData(null);
-      setError(null);
-
-      // Define the function that will fetch the data
-      const fetchData = async () => {
-        try {
-          const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${searchTerm}`);
-          if (!response.ok) {
-            // Instead of just 'Word not found', you could customize this based on response.status
-            throw new Error(response.status === 404 ? 'Word not found' : 'An error occurred');
-          }
-          const data = await response.json();
-          // Ensure data is in the expected format before attempting to access .sourceUrls
-          if (data && Array.isArray(data) && data.length > 0) {
-            const sources = data[0].sourceUrls; // Ensure this key exists in your actual API response
-            setWordData({ data: data, sourceUrls: sources });
-          } else {
-            // Handle unexpected data format
-            throw new Error('Unexpected data format');
-          }
-        } catch (error) {
-          setError(error.message);
-        }
-      };
-
-      // Call the fetchData function
-      fetchData();
+    if (!error) {
+      setShowErrorClass(false);
+      return undefined;
     }
-  }, [searchTerm]); // Only re-run the effect if searchTerm changes
 
-  useEffect(() => {
-    if (error) {
-      setShowErrorClass(true); // Show error class when there's an error
+    setShowErrorClass(true);
+    const timer = setTimeout(() => setShowErrorClass(false), 3000);
 
-      // Remove the error class after 4 seconds but keep the error message
-      setTimeout(() => {
-        setShowErrorClass(false);
-      }, 3000);
-    }
-  }, [error]);
+    return () => clearTimeout(timer);
+  }, [error, request.nonce]);
 
   // Determine the classnames dynamically
   const classNames = `error-message${showErrorClass ? " showError" : ""}`;
@@ -78,16 +72,27 @@ const App = () => {
       <Header onThemeToggle={handleThemeToggle} theme={theme} />
       <div className='searchWrapper'>
         <Search onSearch={handleSearch} />
-        {wordData ? (
-          <WordDisplay wordData={wordData} />
-        ) : (
+
+        {status === 'idle' && (
           <p className="placeholder-text">Enter a word to get started</p>
         )}
+        {status === 'loading' && <ResultSkeleton />}
+        {status === 'success' && (
+          <ErrorBoundary resetKey={request.nonce}>
+            <WordDisplay wordData={wordData} />
+          </ErrorBoundary>
+        )}
+        {status === 'error' && (
+          <p className="placeholder-text">
+            No results for “{request.term.trim()}”. Check the spelling and try again.
+          </p>
+        )}
       </div>
-      <p className={classNames}>{error || ''}</p>
-      {/* Rest of your app components */}
+
+      {/* Always rendered so screen readers announce the message when it appears */}
+      <p className={classNames} role="status" aria-live="polite">{error || ''}</p>
     </div>
   );
 };
 
-export default App; 
+export default App;

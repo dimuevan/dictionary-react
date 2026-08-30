@@ -1,6 +1,6 @@
 {
-  "short_name": "3",
-  "name": "Developed as an inaugural React project by iamevandimu.com",
+  "short_name": "Dictionearch",
+  "name": "Dictionearch \u2014 English dictionary",
   "icons": [
     {
       "src": "favicon.ico",
@@ -20,6 +20,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
+  "theme_color": "#a543e8",
   "background_color": "#ffffff"
 }

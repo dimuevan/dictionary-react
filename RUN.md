@@ -87,7 +87,12 @@ npm test          # watch mode, πάτα q για έξοδο
 CI=true npm test  # μία φορά και τέλος (για CI)
 ```
 
-> Σημείωση: αυτή τη στιγμή **δεν υπάρχει κανένα test αρχείο** στο project.
+Το `src/App.test.js` καλύπτει τις έξι διαδρομές που είχαν σπάσει στο παρελθόν:
+επιτυχής αναζήτηση, 404, λέξη χωρίς ήχο, σημασία χωρίς `synonyms`, δεύτερη
+αναζήτηση της ίδιας λέξης, και κωδικοποίηση του όρου στο URL.
+
+Το ίδιο τρέχει αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`
+(`npm ci` → tests → build).
 
 ---
 
@@ -99,7 +104,7 @@ CI=true npm test  # μία φορά και τέλος (για CI)
 | `Something is already running on port 3000` | `PORT=3001 npm start` ή κλείσε την άλλη διεργασία |
 | Οι αναζητήσεις δεν φέρνουν τίποτα | Έλεγξε δίκτυο/firewall προς `api.dictionaryapi.dev` (public API, χωρίς key) |
 | `Module not found` μετά από git pull | Ξανατρέξε `npm install` |
-| Warnings `eqeqeq` στο console | Γνωστά lint warnings στο `src/WordDisplay.js` (γραμμές 136, 172, 207) |
+| Το build σταματά σε CI | Το `CI=true` μετατρέπει τα lint warnings σε errors — τρέξε `npm run build` τοπικά για να τα δεις |
 
 ---
 
@@ -107,20 +112,32 @@ CI=true npm test  # μία φορά και τέλος (για CI)
 
 ```
 src/
-├── index.js          # entry point, mount του App
-├── index.css         # CSS variables + light/dark themes (body.light / body.dark)
-├── App.js            # state: theme, searchTerm, wordData, error + το fetch
-├── App.css           # error toast, placeholder, layout wrapper
-├── Header.js/.css    # λογότυπο + διακόπτης θέματος
-├── Search.js/.css    # φόρμα αναζήτησης (autofocus στο mount)
-├── WordDisplay.js    # ταξινόμηση σημασιών (noun/verb/others) + render
-├── WordDisplay.css   # τυπογραφία αποτελεσμάτων, play button
-└── images/icons/     # moon.svg, sun.svg
+├── index.js            # entry point, mount του App
+├── index.css           # CSS variables + light/dark themes (body.light / body.dark)
+├── App.js              # theme, όρος αναζήτησης, επιλογή τι δείχνει η οθόνη
+├── App.css             # error toast, placeholder, layout wrapper
+├── useDictionary.js    # το fetch: status/data/error, ακύρωση, encoding
+├── ErrorBoundary.js    # κρατάει μια κακοσχηματισμένη απάντηση από το να σβήσει τη σελίδα
+├── ResultSkeleton.js   # placeholder όσο φορτώνει
+├── Header.js/.css      # λογότυπο + διακόπτης θέματος
+├── Search.js/.css      # φόρμα αναζήτησης (autofocus στο mount)
+├── WordDisplay.js      # ομαδοποίηση σημασιών ανά μέρος του λόγου + render
+├── WordDisplay.css     # τυπογραφία αποτελεσμάτων, play button
+├── App.test.js         # τα tests
+└── images/icons/       # moon.svg, sun.svg
 ```
 
-**Ροή δεδομένων:** `Search` → `onSearch(query)` → `App.searchTerm` →
-`useEffect` κάνει `fetch` στο `https://api.dictionaryapi.dev/api/v2/entries/en/<word>` →
-`wordData` → `WordDisplay`.
+**Ροή δεδομένων:** `Search` → `onSearch(query)` → `App` κρατάει
+`{ term, nonce }` → `useDictionary` κάνει `fetch` στο
+`https://api.dictionaryapi.dev/api/v2/entries/en/<word>` και επιστρέφει
+`{ status, data, error }` → `WordDisplay`.
+
+Το `nonce` αυξάνεται σε κάθε submit, ώστε η ίδια λέξη να μπορεί να αναζητηθεί
+δύο φορές στη σειρά. Κάθε νέα αναζήτηση ακυρώνει την προηγούμενη με
+`AbortController`, οπότε μια αργή απάντηση δεν προλαβαίνει να γράψει πάνω σε
+μια νεότερη.
 
 Το θέμα εφαρμόζεται με `document.body.className = theme` και το υπόλοιπο
-γίνεται από CSS variables στο `index.css`.
+γίνεται από CSS variables στο `index.css`. Η αρχική τιμή έρχεται από το
+`localStorage` και, αν δεν υπάρχει αποθηκευμένη, από το
+`prefers-color-scheme` του συστήματος.

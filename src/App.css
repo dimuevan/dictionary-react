@@ -1,52 +1,11 @@
-.App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
 a {
   color: #a543e8;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
-}
-
-.App-link {
-  color: #61dafb;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
 }
 
 .error-message {
   color: #fff;
   text-align: center;
-  margin-top: 20px;
   background: #000;
-  width: auto;
   display: inline-block;
   padding: 18px 24px 17px;
   border-radius: 12px;
@@ -57,8 +16,11 @@ a {
   transition: bottom 150ms;
   width: auto;
   min-width: 120px;
+  margin: 0;
 }
 
+/* The toast stays in the DOM (and the accessibility tree) even when empty, so
+   screen readers announce the message the moment it appears. */
 .error-message.showError {
   bottom: 0px;
 }
@@ -82,3 +44,8 @@ a {
   z-index: 1;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .error-message {
+    transition: none;
+  }
+}

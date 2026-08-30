@@ -2,6 +2,44 @@ import './WordDisplay.css'; // CSS file for styling
 
 import React, { useState } from 'react';
 
+/**
+ * Flattens every entry into one group per part of speech, in the order the API
+ * returns them. Nouns and verbs used to be special-cased, which meant three
+ * near-identical blocks of JSX that drifted apart over time.
+ */
+const groupMeanings = (entries) => {
+  const groups = new Map();
+
+  entries.forEach((entry) => {
+    (entry.meanings || []).forEach((meaning) => {
+      const partOfSpeech = meaning.partOfSpeech;
+      if (!partOfSpeech) return;
+
+      if (!groups.has(partOfSpeech)) {
+        groups.set(partOfSpeech, { partOfSpeech, definitions: [], synonyms: [], antonyms: [] });
+      }
+      const group = groups.get(partOfSpeech);
+
+      (meaning.definitions || []).forEach((definition) => {
+        group.definitions.push({
+          definition: definition.definition,
+          example: typeof definition.example === 'string' ? definition.example : '',
+        });
+      });
+
+      // The API usually sends these, but a missing key used to throw mid-render.
+      group.synonyms.push(...(meaning.synonyms || []));
+      group.antonyms.push(...(meaning.antonyms || []));
+    });
+  });
+
+  return [...groups.values()].map((group) => ({
+    ...group,
+    synonyms: [...new Set(group.synonyms)],
+    antonyms: [...new Set(group.antonyms)],
+  }));
+};
+
 const WordDisplay = ({ wordData }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -9,224 +47,99 @@ const WordDisplay = ({ wordData }) => {
   const playAudio = (audioUrl) => {
     const audio = new Audio(audioUrl);
     setIsPlaying(true);
-    audio.play();
     audio.onended = () => setIsPlaying(false); // Reset the state after the audio has finished playing
-  };
+    audio.onerror = () => setIsPlaying(false);
 
- // Utility to extract and categorize meanings by part of speech, including examples for definitions
-const categorizeMeanings = (data) => {
-  const categories = {
-    noun: {
-      definitions: [],
-      synonyms: [],
-      antonyms: []
-    },
-    verb: {
-      definitions: [],
-      synonyms: [],
-      antonyms: []
-    },
-    others: []
-  };
-
-  data.forEach(dataItem => {
-
-    if (dataItem.meanings) {
-
-      const meanings = dataItem.meanings;
-
-      meanings.forEach(meaning => {
-        if (meaning.partOfSpeech === 'noun' || meaning.partOfSpeech === 'verb') {
-          // Process each definition to include examples
-          meaning.definitions.forEach(definition => {
-            const defWithExamples = {
-              definition: definition.definition,
-              example: definition.example || [] // Ensure examples array exists even if it's empty
-            };
-
-            // Push the definition with examples to the appropriate category
-            if (meaning.partOfSpeech === 'noun') {
-              categories.noun.definitions.push(defWithExamples);
-            } else if (meaning.partOfSpeech === 'verb') {
-              categories.verb.definitions.push(defWithExamples);
-            }
-          });
-
-          // Process synonyms and antonyms as before
-          if (meaning.partOfSpeech === 'noun') {
-            categories.noun.synonyms.push(...meaning.synonyms);
-            categories.noun.antonyms.push(...meaning.antonyms);
-          } else if (meaning.partOfSpeech === 'verb') {
-            categories.verb.synonyms.push(...meaning.synonyms);
-            categories.verb.antonyms.push(...meaning.antonyms);
-          }
-        } else {
-          categories.others.push(meaning);
-        }
-      });
-      
+    const playback = audio.play();
+    if (playback && typeof playback.catch === 'function') {
+      playback.catch(() => setIsPlaying(false));
     }
-    
-  });
+  };
 
-  // Ensure unique synonyms and antonyms
-  categories.noun.synonyms = [...new Set(categories.noun.synonyms)];
-  categories.noun.antonyms = [...new Set(categories.noun.antonyms)];
-  categories.verb.synonyms = [...new Set(categories.verb.synonyms)];
-  categories.verb.antonyms = [...new Set(categories.verb.antonyms)];
+  const entries = wordData.data;
+  const meaningGroups = groupMeanings(entries);
 
-  return categories;
-};
-
-
-  // Categorized meanings
-  const { noun, verb, others } = categorizeMeanings(wordData.data);
-
-  const allIPAtexts = wordData.data.map((wordDataItem) =>
-    wordDataItem.phonetics?.find(phonetic => phonetic.text)
-  );
-
-  const allPhoneticWithAudio = wordData.data.map((wordDataItem) =>
-    wordDataItem.phonetics?.find(phonetic => phonetic.audio)
-  );
+  // One flat list of phonetics across every entry: the first with audio drives
+  // the play button, and the phonetic text falls back to any entry that has one.
+  const phonetics = entries.flatMap((entry) => entry.phonetics || []);
+  const pronunciation = phonetics.find((phonetic) => phonetic.audio);
+  const phoneticText =
+    pronunciation?.text ||
+    phonetics.find((phonetic) => phonetic.text)?.text ||
+    entries.find((entry) => entry.phonetic)?.phonetic ||
+    '';
 
   return (
     <div className="word-display">
-      {wordData && (
-        console.log(others),
-        <>
-
-          <div className="word-header">
-            <div className="word-texts">
-              <h2 className="word-title">{wordData.data[0].word}</h2>
-              {
-                allPhoneticWithAudio && allPhoneticWithAudio.length > 0 ? (
-                  allPhoneticWithAudio[0] && allPhoneticWithAudio[0].text && (
-                    <div className="phonetics">
-                      <div className="phonetic-text">{allPhoneticWithAudio[0].text}</div>
-                    </div>
-                  )
-                ) : allIPAtexts && allIPAtexts.length > 0 ? (
-                  <div className="phonetics">
-                    <div className="phonetic-text">{allIPAtexts[0].text}</div>
-                  </div>
-                ) : null
-              }
+      <div className="word-header">
+        <div className="word-texts">
+          <h2 className="word-title">{entries[0].word}</h2>
+          {phoneticText && (
+            <div className="phonetics">
+              <div className="phonetic-text">{phoneticText}</div>
             </div>
-            {/* Display audio button if audio URL is available */}
-            {allPhoneticWithAudio && (
-              <div className={`audio-button ${isPlaying ? 'is-playing' : ''}`} onClick={() => playAudio(allPhoneticWithAudio[0].audio)}>
-                <div className="play-icon" aria-label="Listen to pronunciation"></div>
-              </div>
-            )}
-          </div>
+          )}
+        </div>
 
-          {/* Display noun meanings, synonyms, and antonyms */}
-          {noun.definitions.length > 0 && (
-            <div className="meanings-section">
-              <h3>
-                <span>Noun</span>
-              </h3>
-              <p className='subtitle'>Meaning</p>
-              {/* Definitions */}
-              <ul>
-                {noun.definitions.map((def, index) => (
-                  <li className='meanings--definition' key={index}>
-                    {def.definition}
-                    {def.example != '' && (
-                      <span className='meanings--example'>"{def.example}"</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {/* Synonyms */}
-              {noun.synonyms.length > 0 && (
-                <div className="synonyms">
-                  <p className='subtitle'>Synonyms</p>
-                  <span className='keywords'>{noun.synonyms.join(', ')}</span>
-                </div>
-              )}
+        {/* Only rendered when a recording actually exists */}
+        {pronunciation && (
+          <button
+            type="button"
+            className={`audio-button ${isPlaying ? 'is-playing' : ''}`}
+            onClick={() => playAudio(pronunciation.audio)}
+            aria-label="Play pronunciation"
+          >
+            <span className="play-icon" aria-hidden="true"></span>
+          </button>
+        )}
+      </div>
 
-              {/* Antonyms */}
-              {noun.antonyms.length > 0 && (
-                <div className="antonyms">
-                  <p className='subtitle'>Antonyms</p>
-                  <span className='keywords'>{noun.antonyms.join(', ')}</span>
-                </div>
-              )}
+      {meaningGroups.map((group) => (
+        <div key={group.partOfSpeech} className="meanings-section">
+          <h3>
+            <span>
+              {group.partOfSpeech.charAt(0).toUpperCase() + group.partOfSpeech.slice(1)}
+            </span>
+          </h3>
+          <p className='subtitle'>Meaning</p>
+
+          <ul>
+            {group.definitions.map((def, index) => (
+              <li className='meanings--definition' key={`${group.partOfSpeech}-${index}`}>
+                {def.definition}
+                {def.example && (
+                  <span className='meanings--example'>"{def.example}"</span>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {group.synonyms.length > 0 && (
+            <div className="synonyms">
+              <p className='subtitle'>Synonyms</p>
+              <span className='keywords'>{group.synonyms.join(', ')}</span>
             </div>
           )}
 
-          {/* Display verb meanings, synonyms, and antonyms */}
-          {verb.definitions.length > 0 && (
-            <div className="meanings-section">
-              <h3>
-                <span>Verb</span>
-              </h3>
-              <p className='subtitle'>Meaning</p>
-              {/* Definitions */}
-              <ul>
-                {verb.definitions.map((def, index) => (
-                  <li className='meanings--definition' key={index}>
-                    {def.definition}
-                    {def.example != '' && (
-                      <span className='meanings--example'>"{def.example}"</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {/* Synonyms */}
-              {verb.synonyms.length > 0 && (
-                <div className="synonyms">
-                  <p className='subtitle'>Synonyms</p>
-                  <span className='keywords'>{verb.synonyms.join(', ')}</span>
-                </div>
-              )}
-
-              {/* Antonyms */}
-              {verb.antonyms.length > 0 && (
-                <div className="antonyms">
-                  <p className='subtitle'>Antonyms</p>
-                  <span className='keywords'>{verb.antonyms.join(', ')}</span>
-                </div>
-              )}
+          {group.antonyms.length > 0 && (
+            <div className="antonyms">
+              <p className='subtitle'>Antonyms</p>
+              <span className='keywords'>{group.antonyms.join(', ')}</span>
             </div>
           )}
+        </div>
+      ))}
 
-          {/* Display meanings for other parts of speech */}
-          {others.map((other, index) => (
-            <div key={index} className="meanings-section">
-              <h3>
-                <span>{other.partOfSpeech.charAt(0).toUpperCase() + other.partOfSpeech.slice(1)}</span>
-              </h3>
-              <p className='subtitle'>Meaning</p>
-              <ul>
-                {other.definitions.map((def, index) => (
-                  <li key={index}>
-                    {def.definition}
-                    {def.example != '' && (
-                      <span className='meanings--example'>"{def.example}"</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {/* Other synonyms and antonyms can be added here if necessary */}
-            </div>
+      {/* Display source if available */}
+      {wordData.sourceUrls && wordData.sourceUrls.length > 0 && (
+        <div className="source">
+          <strong>Source</strong>
+          {wordData.sourceUrls.map((url, index) => (
+            <p key={index}>
+              <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+            </p>
           ))}
-
-          {/* Display source if available */}
-          {wordData.sourceUrls && wordData.sourceUrls.length > 0 && (
-            <div className="source">
-              <strong>Source</strong>
-                {wordData.sourceUrls.map((url, index) => (
-                  <p key={index}>
-                    <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
-                  </p>
-                ))}
-            </div>
-          )}
-          
-        </>
+        </div>
       )}
     </div>
   );

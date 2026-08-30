@@ -40,8 +40,8 @@ const Search = ({ onSearch }) => {
       />
       <button type="submit" className="search-button" aria-label="Search">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M11.2876 21.5752C16.9693 21.5752 21.5752 16.9693 21.5752 11.2876C21.5752 5.60592 16.9693 1 11.2876 1C5.60592 1 1 5.60592 1 11.2876C1 16.9693 5.60592 21.5752 11.2876 21.5752Z" stroke="black" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M18.4429 18.9772L22.4762 23" stroke="black" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M11.2876 21.5752C16.9693 21.5752 21.5752 16.9693 21.5752 11.2876C21.5752 5.60592 16.9693 1 11.2876 1C5.60592 1 1 5.60592 1 11.2876C1 16.9693 5.60592 21.5752 11.2876 21.5752Z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M18.4429 18.9772L22.4762 23" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
     </form>
