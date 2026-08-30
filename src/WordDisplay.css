@@ -1,0 +1,321 @@
+.word-display {
+    padding: 20px;
+    margin-top: 20px;
+    max-width: 100%;
+    width: 100%;
+  }
+  
+  .word-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 40px;
+    justify-content: space-between;
+  }
+  
+  .word-title {
+    font-size: 72px;
+    margin: 0;
+    opacity: 0.9;
+  }
+  
+  .audio-button {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+  }
+  
+  .word-meaning {
+    margin-bottom: 20px;
+  }
+  
+  .part-of-speech {
+    font-weight: bold;
+    font-size: 18px;
+  }
+  
+  .definition {
+    margin-left: 20px;
+  }
+  
+  .example {
+    font-style: italic;
+    color: #555;
+  }
+  
+  .synonyms {
+    color: #555;
+    margin-top: 5px;
+  }
+  
+  .synonyms {
+    margin-top: 10px;
+  }
+  
+  .synonyms ul {
+    /* Style for the synonyms list */
+    padding-left: 20px;
+  }
+  
+  .source {
+    margin-top: 42px;
+    border-top: 2px solid rgb(0 0 0 / 5%);
+    padding-top: 24px;
+  }
+
+  .dark .source {
+    border-top: 2px solid rgb(255 255 255 / 5%);
+    transition: border-top 0.3s;
+  }
+
+  .source strong {
+    font-size: 14px;
+    margin-right: 24px;
+    display: inline-block;
+    opacity: 0.4;
+  }
+
+  .source p {
+    display: inline-block;
+    margin: 0;
+  }
+  
+  .source a {
+    color: #a543e8; /* Typical hyperlink color */
+    text-decoration: none;
+    display: inline-block;
+    font-size: 14px;
+    opacity: 0.6;
+  }
+  
+  .source a:hover {
+    text-decoration: underline;
+    opacity: 1;
+    transition: opacity 0.3s;
+  }
+
+  .audio-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .audio-button svg {
+    fill: currentColor; /* Icon color inherits from text color */
+    transition: fill 0.2s ease-in-out;
+  }
+  
+  .audio-button:hover svg {
+    fill: #a543e8; /* Change color on hover */
+  }
+
+  .phonetics {
+    margin-top: 10px;
+  }
+  
+  .phonetic-entry {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Adjust the space between text and button as needed */
+    margin-bottom: 5px;
+  }
+  
+  .phonetic-text {
+    font-family: sans-serif;
+    letter-spacing: 2px;
+    font-size: 22px;
+    font-weight: 100;
+    color: #a543e8;
+  }
+  
+  .audio-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .etymology {
+    margin-top: 10px;
+    font-style: italic;
+    color: #555; /* Adjust the color to fit your app's theme */
+  }
+
+  .audio-button {
+    background: rgba(166, 67, 232, 0.2);
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease-in-out;
+  }
+  
+  .audio-button.is-playing {
+    /* Add animation or any indication that the audio is playing */
+    animation: pulse-animation 2s infinite;
+  }
+  
+  .play-icon {
+    width: 0;
+    height: 0;
+    border-left: 12px solid transparent;
+    border-right: 12px solid transparent;
+    border-bottom: 20px solid #a543e8;
+    transform: rotate(90deg);
+    margin-left: 6px;
+    margin-top: 1px;
+  }
+  
+  /* Keyframes for pulse animation */
+  @keyframes pulse-animation {
+    0% {
+      box-shadow: 0 0 0 0px rgba(166, 67, 232, 0.1);
+    }
+    100% {
+      box-shadow: 0 0 0 25px rgba(166, 67, 232, 0);
+    }
+  }
+
+  
+.meanings-section {
+  margin-top: 26px;
+}
+
+.meanings-section h3 {
+  color: #333;
+  font-size: 24px;
+  text-transform: lowercase;
+  font-style: italic;
+  font-weight: 900;
+  position: relative;
+  opacity: 0.8;
+}
+
+.meanings-section h3:before {
+  content: "";
+  height: 1px;
+  max-width: 100%;
+  width: 100%;
+  background: var(--text-color);
+  display: block;
+  position: absolute;
+  top: 54%;
+  right: 0;
+  transform: translate(0px, -50%);
+  opacity: 0.1;
+  left: 0;
+  transition: background-color 0.3s; /* Smooth transition for theme change */
+}
+
+.meanings-section h3 span {
+  background: var(--background-color);
+  color: var(--text-color);
+  display: inline-block;
+  position: relative;
+  padding-right: 21px;
+  z-index: 1;
+  transition: background-color 0.3s, color 0.3s; /* Smooth transition for theme change */
+}
+
+.subtitle {
+  opacity: 0.4;
+  color: var(--text-color);
+  font-size: 20px;
+  letter-spacing: 0.3px;
+  font-weight: 600;
+  display: inline-block;
+  margin: 6px 0;
+  transition: color 0.3s; /* Smooth transition for theme change */
+}
+
+.synonyms, .antonyms {
+  margin: 6px 0;
+  font-style: italic;
+}
+
+.meanings--example {
+  display: block;
+  opacity: 0.6;
+  margin: 12px 0;
+  font-style: italic;
+}
+
+.keywords {
+  margin-left: 24px;
+  font-size: 20px;
+  font-weight: 900;
+  color: #a543e8;
+}
+
+ul {
+  margin: 24px 0 42px;
+  padding-left: 42px;
+}
+
+ul li {
+  padding-left: 18px;
+  line-height: 28px;
+  margin-bottom: 12px;
+  font-size: 17px;
+}
+
+ul li::marker {
+  color: #a543e8;
+  right: 24px;
+}
+  
+  /* Responsive adjustments can be added if needed */
+
+  @media (max-width: 768px) {
+    /* Adjust styles for smaller screens */
+    .word-display {
+      padding: 20px;
+    }
+    .word-title {
+      font-size: 32px;
+    }
+    .phonetic-text {
+      font-size: 16px;
+    }
+    .audio-button {
+      width: 60px;
+      height: 60px;
+    }
+    .play-icon {
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+      border-bottom: 15px solid #a543e8;
+      margin-left: 4px;
+    }
+    .word-header {
+      margin-bottom: 20px;
+    }
+    .meanings-section h3 {
+      font-size: 20px;
+    }
+    .subtitle {
+      font-size: 18px;
+      margin: 3px 0;
+    }
+    .keywords {
+      margin-left: 18px;
+      font-size: 18px;
+    }
+    ul {
+      padding-left: 27px;
+      margin: 18px 0 30px;
+    }
+    ul li {
+      padding-left: 12px;
+      line-height: 28px;
+      margin-bottom: 12px;
+      font-size: 16px;
+    }
+
+  }

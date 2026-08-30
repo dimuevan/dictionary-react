@@ -1,0 +1,125 @@
+/* Theme Toggle Switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 54px;
+    height: 28px;
+    margin-left: 1rem; /* Ensures some space around the switch */
+  }
+  
+  .switch input { 
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider.round {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: #f0f0f0;
+    transition: .4s;
+    border-radius: 34px;
+  }
+  
+  .slider.round:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 6px;
+    bottom: 5px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  input:checked + .slider {
+    background-color: #a543e8;
+  }
+  
+  /*input:focus + .slider {
+    box-shadow: 0 0 1px #a543e8;
+  }*/
+  
+  input:checked + .slider:before {
+    transform: translateX(24px);
+  }
+  
+  /* Additional styling for the header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1rem 0;
+    padding: 32px;
+    color: var(--text-color, #000);
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    z-index: 0;
+  }
+
+  .header .monogram {
+    display: none;
+  }
+  
+  /* Styling for the moon icon, adjust size as needed */
+  .moon-icon {
+    /* font-size: 24px; */
+    /* cursor: pointer; */
+    width: 32px;
+    height: 32px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0.4;
+  }
+  
+  /* Ensuring that the menu icon has some padding for clickable area */
+  .menu-icon {
+    padding: 5px;
+    cursor: pointer;
+  }
+
+  .logo--link {
+    font-size: 26px;
+    font-weight: 900;
+    text-decoration: none;
+    color: #a543e8;
+    line-height: 1;
+    display: flex;
+    /*font-size: 48px;*/
+    font-weight: 900;
+  }
+
+  .theme-toggle-wrapper {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  
+  /* Responsive adjustments can be added if needed */
+  @media (max-width: 1280px) {
+    /* Adjust styles for smaller screens */
+    .header {
+      position: relative;
+      padding: 20px 20px 12px;
+    }
+  
+    .moon-icon {
+    }
+  }
+  
+  @media (max-width: 320px) {
+    .header .fulllogo {
+      display: none;
+    }
+    .header .monogram {
+      display: block;
+    }
+  }
