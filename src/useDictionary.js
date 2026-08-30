@@ -29,6 +29,9 @@ const describe = (error) => {
     message: offline
       ? 'You appear to be offline'
       : 'Could not reach the dictionary',
+    // A server that answers without CORS headers — an outage page, a rate limit —
+    // is indistinguishable from an unreachable one here, so say both.
+    detail: offline ? 'offline' : 'unreachable',
   };
 };
 
@@ -77,6 +80,13 @@ const useDictionary = (request) => {
         });
       } catch (error) {
         if (error.name === 'AbortError') return; // superseded by a newer search
+
+        // The screen gets a readable message; the console keeps the real cause,
+        // which is what you need when the API itself is the thing misbehaving.
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[dictionearch] lookup failed for "%s":', term, error);
+        }
+
         setState({ status: 'error', data: null, error: describe(error) });
       }
     };

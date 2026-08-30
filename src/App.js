@@ -47,7 +47,10 @@ const explain = (error, term) => {
       };
     default:
       return {
-        text: `${error.message}. This is a connection problem, not a spelling one.`,
+        text:
+          error.detail === 'offline'
+            ? 'You appear to be offline. Reconnect and try again.'
+            : 'Could not reach the dictionary. The service may be down, or something on the network is blocking the request — it is not your spelling.',
         canRetry: true,
       };
   }

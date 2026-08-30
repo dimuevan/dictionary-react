@@ -66,7 +66,7 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
   render(<App />);
   search('hello');
 
-  expect(await screen.findByText(/connection problem, not a spelling one/i)).toBeInTheDocument();
+  expect(await screen.findByText(/service may be down.*not your spelling/i)).toBeInTheDocument();
   // The raw browser string never reaches the reader.
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
