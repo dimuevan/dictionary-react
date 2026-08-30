@@ -1,6 +1,8 @@
 import { readCachedWord, writeCachedWord } from './wordCache';
 import { useEffect, useState } from 'react';
 
+import { fetchWiktionary } from './wiktionary';
+
 const API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 
 // A Cloudflare 522 in front of this API is common and usually gone a moment
@@ -8,7 +10,7 @@ const API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 const RETRY_DELAY_MS = 800;
 const MAX_ATTEMPTS = 2;
 
-const IDLE = { status: 'idle', data: null, error: null, cachedAt: null };
+const IDLE = { status: 'idle', data: null, error: null, cachedAt: null, source: 'primary' };
 
 /**
  * Failures carry a kind so the UI can say what actually went wrong: a word that
@@ -105,7 +107,7 @@ const useDictionary = (request) => {
 
     // Aborting on cleanup keeps a slow response from overwriting a newer one.
     const controller = new AbortController();
-    setState({ status: 'loading', data: null, error: null, cachedAt: null });
+    setState({ status: 'loading', data: null, error: null, cachedAt: null, source: 'primary' });
 
     const run = async () => {
       let lastError;
@@ -114,7 +116,13 @@ const useDictionary = (request) => {
         try {
           const payload = await requestWord(term, controller.signal);
           writeCachedWord(term, payload);
-          setState({ status: 'success', data: payload, error: null, cachedAt: null });
+          setState({
+            status: 'success',
+            data: payload,
+            error: null,
+            cachedAt: null,
+            source: 'primary',
+          });
           return;
         } catch (error) {
           if (error.name === 'AbortError') return; // superseded by a newer search
@@ -138,19 +146,49 @@ const useDictionary = (request) => {
 
       const described = describe(lastError);
 
-      // A word that genuinely does not exist should not resurrect a saved copy.
-      const cached = isTransient(described) ? readCachedWord(term) : null;
+      // A word that genuinely does not exist is an answer, not an outage: no
+      // second source, no saved copy, no retry.
+      if (!isTransient(described)) {
+        setState({ status: 'error', data: null, error: described, cachedAt: null, source: 'primary' });
+        return;
+      }
+
+      // The primary API is a volunteer project that reads Wiktionary. When it is
+      // unreachable, ask Wiktionary itself rather than give up.
+      try {
+        const fallback = await fetchWiktionary(term, controller.signal);
+        if (fallback) {
+          writeCachedWord(term, fallback);
+          setState({
+            status: 'success',
+            data: fallback,
+            error: described,
+            cachedAt: null,
+            source: 'wiktionary',
+          });
+          return;
+        }
+      } catch (fallbackError) {
+        if (fallbackError.name === 'AbortError') return;
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn('[dictionearch] wiktionary fallback failed:', fallbackError);
+        }
+      }
+
+      // Both sources are away: a copy saved earlier still beats an empty screen.
+      const cached = readCachedWord(term);
       if (cached) {
         setState({
           status: 'success',
           data: cached.payload,
           error: described,
           cachedAt: cached.savedAt,
+          source: 'primary',
         });
         return;
       }
 
-      setState({ status: 'error', data: null, error: described, cachedAt: null });
+      setState({ status: 'error', data: null, error: described, cachedAt: null, source: 'primary' });
     };
 
     run();

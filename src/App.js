@@ -73,7 +73,7 @@ const App = () => {
   const [request, setRequest] = useState({ term: '', nonce: 0 });
   const [showErrorClass, setShowErrorClass] = useState(false);
 
-  const { status, data: wordData, error, cachedAt } = useDictionary(request);
+  const { status, data: wordData, error, cachedAt, source } = useDictionary(request);
 
   const handleThemeToggle = () => {
     setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
@@ -135,6 +135,17 @@ const App = () => {
               <div className="cache-notice">
                 <p>
                   {error.message}, so this is the copy saved {savedAgo(cachedAt)}.
+                </p>
+                <button type="button" className="retry-button" onClick={handleRetry}>
+                  Try again
+                </button>
+              </div>
+            )}
+            {!cachedAt && source === 'wiktionary' && (
+              <div className="cache-notice">
+                <p>
+                  {error.message}, so this comes straight from Wiktionary — which
+                  carries no pronunciation audio.
                 </p>
                 <button type="button" className="retry-button" onClick={handleRetry}>
                   Try again

@@ -69,7 +69,11 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
   expect(
     await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
   ).toBeInTheDocument();
-  expect(global.fetch).toHaveBeenCalledTimes(2); // one automatic retry
+  // Two attempts at the primary, then one at the Wiktionary fallback.
+  const hosts = global.fetch.mock.calls.map(([url]) =>
+    String(url).includes('wiktionary.org') ? 'wiktionary' : 'primary'
+  );
+  expect(hosts).toEqual(['primary', 'primary', 'wiktionary']);
   // The raw browser string never reaches the reader.
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
@@ -179,4 +183,90 @@ test('does not resurrect a saved copy for a word that no longer resolves', async
 
   expect(await screen.findByText(/No results for/)).toBeInTheDocument();
   expect(screen.queryByText(/this is the copy saved/i)).not.toBeInTheDocument();
+});
+
+// Shaped like a real Wikimedia REST definition payload: keyed by language,
+// parts of speech capitalised, definitions and examples as HTML fragments.
+const wiktionaryPayload = {
+  en: [
+    {
+      partOfSpeech: 'Noun',
+      language: 'English',
+      definitions: [
+        {
+          definition: 'The smallest <a href="/wiki/unit">unit</a> of language &amp; meaning.',
+          examples: ['<i>He said a kind <b>word</b>.</i>'],
+        },
+        { definition: 'Something <i>said</i>.' },
+      ],
+    },
+    {
+      partOfSpeech: 'Verb',
+      language: 'English',
+      definitions: [{ definition: 'To phrase in a particular way.' }],
+    },
+  ],
+  fr: [{ partOfSpeech: 'Noun', definitions: [{ definition: 'ignored, not English' }] }],
+};
+
+const failPrimaryThen = (wiktionaryResponse) =>
+  jest.fn((url) =>
+    String(url).includes('wiktionary.org')
+      ? wiktionaryResponse()
+      : Promise.reject(new TypeError('Failed to fetch'))
+  );
+
+test('falls back to Wiktionary when the primary dictionary is unreachable', async () => {
+  global.fetch = failPrimaryThen(() => mockJson(wiktionaryPayload));
+  render(<App />);
+  search('word');
+
+  expect(
+    await screen.findByRole('heading', { name: 'word' }, { timeout: 4000 })
+  ).toBeInTheDocument();
+
+  // HTML fragments arrive as readable text, entities decoded, tags gone.
+  expect(screen.getByText('The smallest unit of language & meaning.')).toBeInTheDocument();
+  expect(screen.getByText('"He said a kind word."')).toBeInTheDocument();
+  expect(screen.queryByText(/<a href/)).not.toBeInTheDocument();
+
+  // Both English parts of speech render; the French block is ignored.
+  expect(screen.getByText('Noun')).toBeInTheDocument();
+  expect(screen.getByText('Verb')).toBeInTheDocument();
+  expect(screen.queryByText(/not English/)).not.toBeInTheDocument();
+
+  // Wiktionary has no audio here, so the play button must not appear.
+  expect(screen.queryByRole('button', { name: 'Play pronunciation' })).not.toBeInTheDocument();
+  expect(screen.getByText(/straight from Wiktionary/i)).toBeInTheDocument();
+});
+
+test('does not consult Wiktionary when the word simply does not exist', async () => {
+  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  render(<App />);
+  search('zzzzqqq');
+
+  await screen.findByText(/No results for/);
+  expect(global.fetch).toHaveBeenCalledTimes(1);
+  expect(global.fetch.mock.calls.every(([url]) => !String(url).includes('wiktionary'))).toBe(true);
+});
+
+test('reports the failure when both sources are away and nothing is saved', async () => {
+  global.fetch = jest.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  render(<App />);
+  search('word');
+
+  expect(
+    await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
+  ).toBeInTheDocument();
+  expect(screen.queryByText(/straight from Wiktionary/i)).not.toBeInTheDocument();
+});
+
+test('ignores a Wiktionary payload with no usable English definitions', async () => {
+  global.fetch = failPrimaryThen(() => mockJson({ fr: [{ partOfSpeech: 'Nom', definitions: [] }] }));
+  render(<App />);
+  search('word');
+
+  expect(
+    await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
+  ).toBeInTheDocument();
 });
