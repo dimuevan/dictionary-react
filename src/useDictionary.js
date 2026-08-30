@@ -5,10 +5,20 @@ import { fetchWiktionary } from './wiktionary';
 
 const API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
 
-// A Cloudflare 522 in front of this API is common and usually gone a moment
-// later, so one quiet retry saves most of them before the reader sees anything.
-const RETRY_DELAY_MS = 800;
-const MAX_ATTEMPTS = 2;
+// A stalled request is worse than a failed one: the reader waits with nothing on
+// screen. Cloudflare takes ~15s to admit a 522, so cap it well below that and
+// move to the second source instead.
+const PRIMARY_TIMEOUT_MS = 3500;
+const FALLBACK_TIMEOUT_MS = 6000;
+
+// Once the primary has failed, it is almost certainly still failing a few
+// seconds later. Skipping it removes its timeout from every following search.
+const PRIMARY_COOLDOWN_MS = 60000;
+let primaryDownUntil = 0;
+
+export const resetPrimaryBreaker = () => {
+  primaryDownUntil = 0;
+};
 
 const IDLE = { status: 'idle', data: null, error: null, cachedAt: null, source: 'primary' };
 
@@ -23,12 +33,12 @@ const failure = (kind, message) => {
   return error;
 };
 
-/** Worth another attempt, and worth falling back to a saved copy for. */
+/** Worth a second source, and worth falling back to a saved copy for. */
 const isTransient = (error) =>
   !error.kind || error.kind === 'network' || error.kind === 'service';
 
 const describe = (error) => {
-  if (error.kind) {
+  if (error && error.kind) {
     return { kind: error.kind, message: error.message };
   }
 
@@ -44,28 +54,27 @@ const describe = (error) => {
   };
 };
 
-const abortError = () => {
-  const error = new Error('Aborted');
-  error.name = 'AbortError';
-  return error;
-};
+/**
+ * Gives one request its own deadline while still obeying the search's own
+ * cancellation. Callers check the outer signal to tell a timeout (try the next
+ * source) from a superseded search (drop everything).
+ */
+const withDeadline = (outerSignal, ms) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  const relay = () => controller.abort();
 
-const wait = (ms, signal) =>
-  new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(abortError());
-      return;
-    }
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(abortError());
-      },
-      { once: true }
-    );
-  });
+  if (outerSignal.aborted) controller.abort();
+  else outerSignal.addEventListener('abort', relay, { once: true });
+
+  return {
+    signal: controller.signal,
+    release: () => {
+      clearTimeout(timer);
+      outerSignal.removeEventListener('abort', relay);
+    },
+  };
+};
 
 const requestWord = async (term, signal) => {
   const response = await fetch(`${API_URL}/${encodeURIComponent(term)}`, { signal });
@@ -85,15 +94,17 @@ const requestWord = async (term, signal) => {
 };
 
 /**
- * Fetches a word from the dictionary API.
+ * Fetches a word, from the primary dictionary API when it is answering and from
+ * Wiktionary when it is not.
  *
  * `request` is an object `{ term, nonce }` rather than a plain string so that
  * searching the same word twice still triggers a new request: the nonce changes
  * on every submit, which gives the effect a new dependency to react to. That
  * also makes retrying a failed request a matter of bumping the nonce.
  *
- * Returns `cachedAt` when the service could not be reached and a previously
- * saved copy of the word is being shown instead.
+ * A saved copy of the word, if there is one, is shown immediately and replaced
+ * when a fresh answer arrives — so a word you have seen before opens at once.
+ * `cachedAt` is set only once the refresh has actually failed.
  */
 const useDictionary = (request) => {
   const [state, setState] = useState(IDLE);
@@ -107,15 +118,46 @@ const useDictionary = (request) => {
 
     // Aborting on cleanup keeps a slow response from overwriting a newer one.
     const controller = new AbortController();
-    setState({ status: 'loading', data: null, error: null, cachedAt: null, source: 'primary' });
+    const { signal } = controller;
+
+    // Show what we already have straight away; the network then confirms or
+    // corrects it, instead of the reader watching a skeleton for a word we hold.
+    const cached = readCachedWord(term);
+    setState(
+      cached
+        ? {
+            status: 'success',
+            data: cached.payload,
+            error: null,
+            cachedAt: null,
+            source: 'primary',
+          }
+        : { status: 'loading', data: null, error: null, cachedAt: null, source: 'primary' }
+    );
+
+    // With `described`, the copy is shown under a notice explaining why it is
+    // stale. Without it, the copy simply stands — nothing to explain.
+    const keepCached = (described) => {
+      if (!cached) return false;
+      setState({
+        status: 'success',
+        data: cached.payload,
+        error: described,
+        cachedAt: described ? cached.savedAt : null,
+        source: 'primary',
+      });
+      return true;
+    };
 
     const run = async () => {
-      let lastError;
+      let primaryError;
 
-      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+      if (Date.now() >= primaryDownUntil) {
+        const deadline = withDeadline(signal, PRIMARY_TIMEOUT_MS);
         try {
-          const payload = await requestWord(term, controller.signal);
+          const payload = await requestWord(term, deadline.signal);
           writeCachedWord(term, payload);
+          primaryDownUntil = 0;
           setState({
             status: 'success',
             data: payload,
@@ -125,38 +167,41 @@ const useDictionary = (request) => {
           });
           return;
         } catch (error) {
-          if (error.name === 'AbortError') return; // superseded by a newer search
-          lastError = error;
+          if (signal.aborted) return; // superseded by a newer search
+          primaryError = error;
 
-          if (!isTransient(error) || attempt === MAX_ATTEMPTS) break;
-
-          try {
-            await wait(RETRY_DELAY_MS, controller.signal);
-          } catch (aborted) {
+          if (!isTransient(error)) {
+            // A word that genuinely does not exist is an answer, not an outage —
+            // unless we are refreshing a copy we already hold, which stays.
+            if (!keepCached(null)) {
+              setState({
+                status: 'error',
+                data: null,
+                error: describe(error),
+                cachedAt: null,
+                source: 'primary',
+              });
+            }
             return;
           }
+
+          primaryDownUntil = Date.now() + PRIMARY_COOLDOWN_MS;
+        } finally {
+          deadline.release();
         }
       }
 
-      // The screen gets a readable message; the console keeps the real cause,
-      // which is what you need when the API itself is the thing misbehaving.
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn('[dictionearch] lookup failed for "%s":', term, lastError);
+      if (process.env.NODE_ENV !== 'production' && primaryError) {
+        console.warn('[dictionearch] primary lookup failed for "%s":', term, primaryError);
       }
 
-      const described = describe(lastError);
-
-      // A word that genuinely does not exist is an answer, not an outage: no
-      // second source, no saved copy, no retry.
-      if (!isTransient(described)) {
-        setState({ status: 'error', data: null, error: described, cachedAt: null, source: 'primary' });
-        return;
-      }
+      const described = describe(primaryError);
 
       // The primary API is a volunteer project that reads Wiktionary. When it is
       // unreachable, ask Wiktionary itself rather than give up.
+      const deadline = withDeadline(signal, FALLBACK_TIMEOUT_MS);
       try {
-        const fallback = await fetchWiktionary(term, controller.signal);
+        const fallback = await fetchWiktionary(term, deadline.signal);
         if (fallback) {
           writeCachedWord(term, fallback);
           setState({
@@ -169,26 +214,24 @@ const useDictionary = (request) => {
           return;
         }
       } catch (fallbackError) {
-        if (fallbackError.name === 'AbortError') return;
+        if (signal.aborted) return;
         if (process.env.NODE_ENV !== 'production') {
           console.warn('[dictionearch] wiktionary fallback failed:', fallbackError);
         }
+      } finally {
+        deadline.release();
       }
 
       // Both sources are away: a copy saved earlier still beats an empty screen.
-      const cached = readCachedWord(term);
-      if (cached) {
-        setState({
-          status: 'success',
-          data: cached.payload,
-          error: described,
-          cachedAt: cached.savedAt,
-          source: 'primary',
-        });
-        return;
-      }
+      if (keepCached(described)) return;
 
-      setState({ status: 'error', data: null, error: described, cachedAt: null, source: 'primary' });
+      setState({
+        status: 'error',
+        data: null,
+        error: described,
+        cachedAt: null,
+        source: 'primary',
+      });
     };
 
     run();

@@ -7,7 +7,7 @@ import Header from './Header';
 import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
-import useDictionary from './useDictionary';
+import useDictionary, { resetPrimaryBreaker } from './useDictionary';
 
 const THEME_KEY = 'dictionearch-theme';
 
@@ -84,8 +84,10 @@ const App = () => {
     setRequest((current) => ({ term: query, nonce: current.nonce + 1 }));
   };
 
-  // Retrying is the same request with a fresh nonce.
+  // Retrying is the same request with a fresh nonce. An explicit retry is also
+  // the moment to give the primary dictionary another chance, cooldown or not.
   const handleRetry = () => {
+    resetPrimaryBreaker();
     setRequest((current) => ({ ...current, nonce: current.nonce + 1 }));
   };
 
@@ -131,7 +133,7 @@ const App = () => {
         {status === 'loading' && <ResultSkeleton />}
         {status === 'success' && (
           <ErrorBoundary resetKey={request.nonce}>
-            {cachedAt && (
+            {cachedAt && error && (
               <div className="cache-notice">
                 <p>
                   {error.message}, so this is the copy saved {savedAgo(cachedAt)}.
@@ -141,7 +143,7 @@ const App = () => {
                 </button>
               </div>
             )}
-            {!cachedAt && source === 'wiktionary' && (
+            {!cachedAt && source === 'wiktionary' && error && (
               <div className="cache-notice">
                 <p>
                   {error.message}, so this comes straight from Wiktionary — which

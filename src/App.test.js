@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import App from './App';
 import React from 'react';
+import { resetPrimaryBreaker } from './useDictionary';
 
 /**
  * Each test here locks down a bug that shipped at some point: they are the
@@ -34,6 +35,7 @@ const search = (word) => {
 beforeEach(() => {
   global.fetch = jest.fn(() => mockJson([entry()]));
   window.localStorage.clear();
+  resetPrimaryBreaker(); // module-level state must not leak between tests
 });
 
 afterEach(() => {
@@ -69,11 +71,11 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
   expect(
     await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
   ).toBeInTheDocument();
-  // Two attempts at the primary, then one at the Wiktionary fallback.
+  // One attempt at the primary, then straight to the Wiktionary fallback.
   const hosts = global.fetch.mock.calls.map(([url]) =>
     String(url).includes('wiktionary.org') ? 'wiktionary' : 'primary'
   );
-  expect(hosts).toEqual(['primary', 'primary', 'wiktionary']);
+  expect(hosts).toEqual(['primary', 'wiktionary']);
   // The raw browser string never reaches the reader.
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
@@ -139,20 +141,84 @@ test('encodes the search term into the request URL', async () => {
   );
 });
 
-test('retries a transient failure once, without telling the reader', async () => {
-  global.fetch = jest
-    .fn()
-    .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch')))
-    .mockImplementationOnce(() => mockJson([entry()]));
+test('stops asking a primary that just failed, and goes straight to Wiktionary', async () => {
+  global.fetch = failPrimaryThen(() => mockJson(wiktionaryPayload));
+  render(<App />);
+
+  search('word');
+  await screen.findByRole('heading', { name: 'word' }, {}, { timeout: 4000 });
+
+  global.fetch.mockClear();
+  search('other');
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+
+  // The second search skips the dead primary entirely.
+  const hosts = global.fetch.mock.calls.map(([url]) =>
+    String(url).includes('wiktionary.org') ? 'wiktionary' : 'primary'
+  );
+  expect(hosts).toEqual(['wiktionary']);
+});
+
+test('gives the primary another chance when the reader asks for one', async () => {
+  global.fetch = failPrimaryThen(() => mockJson(wiktionaryPayload));
+  render(<App />);
+  search('word');
+  await screen.findByText(/straight from Wiktionary/i, {}, { timeout: 4000 });
+
+  global.fetch = jest.fn(() => mockJson([entry()]));
+  fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+  await screen.findByRole('heading', { name: 'keyboard' });
+  expect(String(global.fetch.mock.calls[0][0])).toContain('dictionaryapi.dev');
+});
+
+test('gives up on a hanging request instead of waiting forever', async () => {
+  jest.useFakeTimers();
+  global.fetch = jest.fn((url, options) => {
+    if (String(url).includes('wiktionary.org')) return mockJson(wiktionaryPayload);
+    // Never settles on its own; only the deadline can end it.
+    return new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const aborted = new Error('The user aborted a request.');
+        aborted.name = 'AbortError';
+        reject(aborted);
+      });
+    });
+  });
+
+  render(<App />);
+  search('word');
+
+  await act(async () => {
+    jest.advanceTimersByTime(4000); // past the 3.5s primary deadline
+  });
+  jest.useRealTimers();
+
+  expect(await screen.findByRole('heading', { name: 'word' })).toBeInTheDocument();
+  expect(screen.getByText(/straight from Wiktionary/i)).toBeInTheDocument();
+});
+
+test('shows a saved copy immediately, then replaces it with the fresh one', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  unmount();
+  resetPrimaryBreaker();
+
+  let release;
+  global.fetch = jest.fn(
+    () => new Promise((resolve) => { release = () => resolve(mockJson([entry({ word: 'keyboard', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A fresher definition.' }], synonyms: [], antonyms: [] }] })])); })
+  );
 
   render(<App />);
   search('keyboard');
 
-  expect(
-    await screen.findByRole('heading', { name: 'keyboard' }, { timeout: 4000 })
-  ).toBeInTheDocument();
-  expect(global.fetch).toHaveBeenCalledTimes(2);
-  expect(screen.queryByText(/service may be down/i)).not.toBeInTheDocument();
+  // Rendered from the saved copy before the network has answered at all.
+  expect(await screen.findByText('A set of keys.')).toBeInTheDocument();
+  expect(screen.queryByText(/this is the copy saved/i)).not.toBeInTheDocument();
+
+  await act(async () => { release(); });
+  expect(await screen.findByText('A fresher definition.')).toBeInTheDocument();
 });
 
 test('falls back to a saved copy when the service goes away', async () => {
@@ -171,18 +237,34 @@ test('falls back to a saved copy when the service goes away', async () => {
   expect(screen.getByText('A set of keys.')).toBeInTheDocument();
 });
 
-test('does not resurrect a saved copy for a word that no longer resolves', async () => {
+test('keeps a saved entry on screen when a refresh 404s, but never fetches one', async () => {
+  // A word we already hold demonstrably existed; a 404 on refresh is far more
+  // likely to be the API being unreliable than the word ceasing to exist, and
+  // replacing a readable entry with "no results" would be a regression.
   const { unmount } = render(<App />);
   search('keyboard');
   await screen.findByRole('heading', { name: 'keyboard' });
   unmount();
+  resetPrimaryBreaker();
 
   global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('keyboard');
 
-  expect(await screen.findByText(/No results for/)).toBeInTheDocument();
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  expect(screen.getByText('A set of keys.')).toBeInTheDocument();
+  expect(screen.queryByText(/No results for/)).not.toBeInTheDocument();
+  // Nothing stale is advertised, and the fallback is never consulted for a 404.
   expect(screen.queryByText(/this is the copy saved/i)).not.toBeInTheDocument();
+  expect(global.fetch.mock.calls.every(([url]) => !String(url).includes('wiktionary'))).toBe(true);
+});
+
+test('shows no results for an unknown word it has never seen', async () => {
+  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  render(<App />);
+  search('zzzzqqq');
+
+  expect(await screen.findByText(/No results for/)).toBeInTheDocument();
 });
 
 // Shaped like a real Wikimedia REST definition payload: keyed by language,
