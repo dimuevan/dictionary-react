@@ -90,3 +90,28 @@ a {
     transition: none;
   }
 }
+
+.cache-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  width: 100%;
+  margin-top: 20px;
+  padding: 14px 18px;
+  border: 1px solid rgb(165 67 232 / 35%);
+  border-radius: 12px;
+  background: rgb(165 67 232 / 8%);
+}
+
+.cache-notice p {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.85;
+}
+
+.cache-notice .retry-button {
+  font-size: 14px;
+  padding: 6px 16px;
+}

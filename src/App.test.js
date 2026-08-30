@@ -66,7 +66,10 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
   render(<App />);
   search('hello');
 
-  expect(await screen.findByText(/service may be down.*not your spelling/i)).toBeInTheDocument();
+  expect(
+    await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
+  ).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(2); // one automatic retry
   // The raw browser string never reaches the reader.
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
@@ -130,4 +133,50 @@ test('encodes the search term into the request URL', async () => {
   expect(global.fetch.mock.calls[0][0]).toBe(
     'https://api.dictionaryapi.dev/api/v2/entries/en/a%20b%2Fc'
   );
+});
+
+test('retries a transient failure once, without telling the reader', async () => {
+  global.fetch = jest
+    .fn()
+    .mockImplementationOnce(() => Promise.reject(new TypeError('Failed to fetch')))
+    .mockImplementationOnce(() => mockJson([entry()]));
+
+  render(<App />);
+  search('keyboard');
+
+  expect(
+    await screen.findByRole('heading', { name: 'keyboard' }, { timeout: 4000 })
+  ).toBeInTheDocument();
+  expect(global.fetch).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText(/service may be down/i)).not.toBeInTheDocument();
+});
+
+test('falls back to a saved copy when the service goes away', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  unmount();
+
+  global.fetch = jest.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  render(<App />);
+  search('keyboard');
+
+  expect(
+    await screen.findByText(/this is the copy saved/i, {}, { timeout: 4000 })
+  ).toBeInTheDocument();
+  expect(screen.getByText('A set of keys.')).toBeInTheDocument();
+});
+
+test('does not resurrect a saved copy for a word that no longer resolves', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  unmount();
+
+  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  render(<App />);
+  search('keyboard');
+
+  expect(await screen.findByText(/No results for/)).toBeInTheDocument();
+  expect(screen.queryByText(/this is the copy saved/i)).not.toBeInTheDocument();
 });

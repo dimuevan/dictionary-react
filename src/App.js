@@ -28,6 +28,18 @@ const getInitialTheme = () => {
  * What the reader sees in place of the result. Only 'not-found' is about the
  * word they typed; the rest are our problem, and retrying can fix them.
  */
+const savedAgo = (timestamp) => {
+  const minutes = Math.round((Date.now() - timestamp) / 60000);
+  if (minutes < 1) return 'a moment ago';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+};
+
 const explain = (error, term) => {
   switch (error.kind) {
     case 'not-found':
@@ -61,7 +73,7 @@ const App = () => {
   const [request, setRequest] = useState({ term: '', nonce: 0 });
   const [showErrorClass, setShowErrorClass] = useState(false);
 
-  const { status, data: wordData, error } = useDictionary(request);
+  const { status, data: wordData, error, cachedAt } = useDictionary(request);
 
   const handleThemeToggle = () => {
     setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
@@ -119,6 +131,16 @@ const App = () => {
         {status === 'loading' && <ResultSkeleton />}
         {status === 'success' && (
           <ErrorBoundary resetKey={request.nonce}>
+            {cachedAt && (
+              <div className="cache-notice">
+                <p>
+                  {error.message}, so this is the copy saved {savedAgo(cachedAt)}.
+                </p>
+                <button type="button" className="retry-button" onClick={handleRetry}>
+                  Try again
+                </button>
+              </div>
+            )}
             <WordDisplay wordData={wordData} />
           </ErrorBoundary>
         )}
