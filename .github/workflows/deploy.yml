@@ -1,0 +1,116 @@
+name: Deploy
+
+# The build has always been uploaded by hand, which is why the deploy
+# subdirectory broke twice without anyone noticing until the page came up
+# blank. This runs only after CI has gone green on main, builds with the real
+# base path, checks the result would work where it is going, and uploads it.
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, and never cancel one halfway: a partly uploaded build
+# is a broken site.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and upload
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The commit CI actually passed on, not whatever main has become.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build for the subdirectory it is served from
+        run: npm run build
+
+      - name: Check the build would work there
+        run: npm run check:build
+
+      - name: See whether the credentials are configured
+        id: credentials
+        env:
+          HOST: ${{ secrets.DEPLOY_FTP_HOST }}
+          USERNAME: ${{ secrets.DEPLOY_FTP_USER }}
+          PASSWORD: ${{ secrets.DEPLOY_FTP_PASSWORD }}
+        run: |
+          if [ -n "$HOST" ] && [ -n "$USERNAME" ] && [ -n "$PASSWORD" ]; then
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload
+        if: steps.credentials.outputs.ready == 'true'
+        env:
+          HOST: ${{ secrets.DEPLOY_FTP_HOST }}
+          USERNAME: ${{ secrets.DEPLOY_FTP_USER }}
+          PASSWORD: ${{ secrets.DEPLOY_FTP_PASSWORD }}
+          REMOTE_DIR: ${{ secrets.DEPLOY_FTP_DIR }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+
+          # Encrypted, certificate verified, and nothing on the far side is
+          # deleted: this only ever adds or replaces the files it just built.
+          lftp -c "
+            set ftp:ssl-force true;
+            set ftp:ssl-protect-data true;
+            set ssl:verify-certificate true;
+            open -u '$USERNAME','$PASSWORD' '$HOST';
+            mirror --reverse --verbose --parallel=4 build/ '${REMOTE_DIR:-.}';
+          "
+
+      - name: Check the deployed page answers
+        if: steps.credentials.outputs.ready == 'true'
+        env:
+          URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          url="${URL:-http://dev.iamevandimu.com/challenges/react/dictionearch/}"
+          asset=$(grep -o 'src="[^"]*assets/[^"]*\.js"' build/index.html | cut -d'"' -f2)
+
+          echo "Asking for $url"
+          curl --fail --silent --show-error --location "$url" > /tmp/deployed.html
+          grep -q "$asset" /tmp/deployed.html
+
+          echo "Asking for the bundle it names"
+          curl --fail --silent --show-error --location --output /dev/null \
+            "${url%/}/assets/$(basename "$asset")"
+
+          echo "The deployed page names the bundle this run built, and the bundle is there."
+
+      - name: Explain why nothing was uploaded
+        if: steps.credentials.outputs.ready != 'true'
+        run: |
+          {
+            echo '### Nothing was uploaded'
+            echo
+            echo 'The build was made and checked, but no deploy credentials are set.'
+            echo 'Add these under Settings → Secrets and variables → Actions:'
+            echo
+            echo '| Secret | What it is |'
+            echo '| --- | --- |'
+            echo '| `DEPLOY_FTP_HOST` | the FTP host, e.g. `ftp.iamevandimu.com` |'
+            echo '| `DEPLOY_FTP_USER` | the FTP user |'
+            echo '| `DEPLOY_FTP_PASSWORD` | its password |'
+            echo '| `DEPLOY_FTP_DIR` | the directory to write into, e.g. `/public_html/challenges/react/dictionearch` |'
+            echo
+            echo 'Optionally a repository *variable* `DEPLOY_URL` if the address is'
+            echo 'not `http://dev.iamevandimu.com/challenges/react/dictionearch/`.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo '::notice::No deploy credentials configured; the build was checked but not uploaded.'

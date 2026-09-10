@@ -29,5 +29,6 @@ export default defineConfig(({ command }) => ({
     css: false,
     include: ['src/**/*.test.{js,jsx}'],
     restoreMocks: true,
+    unstubGlobals: true,
   },
 }));

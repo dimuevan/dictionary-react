@@ -116,13 +116,18 @@ const sourceHost = (urls) => {
   }
 };
 
+// One shared empty value, so "nothing related" compares equal to itself and
+// React can skip the render.
+const NOTHING_RELATED = { rhymes: [], similar: [] };
+
 const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAGE }) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioFailed, setAudioFailed] = useState(false);
   const [selected, setSelected] = useState(0);
   const [copied, setCopied] = useState(false);
   const [frequency, setFrequency] = useState(null);
   const [etymology, setEtymology] = useState(null);
-  const [related, setRelated] = useState({ rhymes: [], similar: [] });
+  const [related, setRelated] = useState(NOTHING_RELATED);
   const [expanded, setExpanded] = useState({});
 
   const headword = wordData.data[0].word;
@@ -134,6 +139,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
     setStudySenseState(studySenseOf(headword, lang));
     setCopied(false);
     setSelected(0);
+    setAudioFailed(false);
   }, [headword, lang]);
 
   // Two extras that enrich an entry without being part of it: neither blocks
@@ -144,20 +150,24 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
 
     const controller = new AbortController();
     fetchFrequency(headword, controller.signal).then((result) => {
-      if (!controller.signal.aborted) setFrequency(result);
+      if (!controller.signal.aborted && result) setFrequency(result);
     });
 
     return () => controller.abort();
   }, [headword, lang]);
 
   useEffect(() => {
-    setRelated({ rhymes: [], similar: [] });
+    setRelated(NOTHING_RELATED);
     setExpanded({});
     if (lang !== DEFAULT_LANGUAGE) return undefined;
 
     const controller = new AbortController();
     fetchRelatedWords(headword, controller.signal).then((result) => {
-      if (!controller.signal.aborted) setRelated(result);
+      if (controller.signal.aborted) return;
+      // A fresh empty object would still be a new value to React, and so a
+      // re-render that changes nothing on screen — one per word, plus an act()
+      // warning for every test that did not wait for an answer nobody shows.
+      if (result.rhymes.length || result.similar.length) setRelated(result);
     });
 
     return () => controller.abort();
@@ -168,7 +178,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
     const controller = new AbortController();
 
     fetchEtymology(headword, lang, controller.signal).then((text) => {
-      if (!controller.signal.aborted) setEtymology(text);
+      if (!controller.signal.aborted && text) setEtymology(text);
     });
 
     return () => controller.abort();
@@ -204,16 +214,28 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
     }
   };
 
-  // Function to play audio pronunciation
+  /**
+   * The recordings are files on someone else's server. When one of them is
+   * missing, or the browser refuses to play it, the button used to go quiet and
+   * leave the reader pressing it again — the one silent failure left in the app.
+   * It says so now, the same way every other failure here does.
+   */
   const playAudio = (audioUrl) => {
     const audio = new Audio(audioUrl);
     setIsPlaying(true);
+    setAudioFailed(false);
+
+    const failed = () => {
+      setIsPlaying(false);
+      setAudioFailed(true);
+    };
+
     audio.onended = () => setIsPlaying(false); // Reset the state after the audio has finished playing
-    audio.onerror = () => setIsPlaying(false);
+    audio.onerror = failed;
 
     const playback = audio.play();
     if (playback && typeof playback.catch === 'function') {
-      playback.catch(() => setIsPlaying(false));
+      playback.catch(failed);
     }
   };
 
@@ -245,6 +267,12 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
             <div className="phonetics">
               <div className="phonetic-text">{phoneticText}</div>
             </div>
+          )}
+
+          {audioFailed && (
+            <p className="audio-failed" role="status">
+              That recording would not play. The phonetic spelling above still stands.
+            </p>
           )}
 
           {frequency && (

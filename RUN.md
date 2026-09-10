@@ -70,22 +70,53 @@ npm run preview
 
 ```bash
 npm run build
+npm run check:build   # ελέγχει ότι το build δουλεύει εκεί που πάει
 # ανέβασε ΟΛΟ το build/ στο /challenges/react/dictionearch/ του server
 ```
+
+Το `check:build` διαβάζει το `build/index.html` και επιβεβαιώνει ότι κάθε
+asset path ξεκινά από τη σωστή βάση, ότι τα αρχεία υπάρχουν όντως, και ότι ο
+service worker κάνει cache τον φάκελο που το build παράγει. Είναι οι δύο
+παγίδες που έχουν ήδη βγάλει λευκή σελίδα, και τώρα φαίνονται σε ένα
+δευτερόλεπτο αντί για μετά το ανέβασμα.
+
+---
+
+## 4β. Αυτόματο deploy
+
+Το `.github/workflows/deploy.yml` κάνει το ίδιο μόνο του: τρέχει **μόνο** αφού
+το CI περάσει σε `main`, χτίζει με τη σωστή βάση, τρέχει το `check:build`,
+ανεβάζει το `build/` με `lftp` πάνω από FTPS, και μετά ζητάει την πραγματική
+σελίδα για να δει ότι όντως αναφέρει το bundle που μόλις χτίστηκε.
+
+Χρειάζεται τέσσερα secrets (Settings → Secrets and variables → Actions):
+
+| Secret | Τι είναι |
+|---|---|
+| `DEPLOY_FTP_HOST` | ο FTP host, π.χ. `ftp.iamevandimu.com` |
+| `DEPLOY_FTP_USER` | ο χρήστης |
+| `DEPLOY_FTP_PASSWORD` | ο κωδικός του |
+| `DEPLOY_FTP_DIR` | ο φάκελος προορισμού, π.χ. `/public_html/challenges/react/dictionearch` |
+
+Χωρίς αυτά το job **δεν αποτυγχάνει**: χτίζει, ελέγχει, και γράφει στο summary
+τι λείπει. Δεν σβήνει ποτέ αρχεία στον server — μόνο προσθέτει και
+αντικαθιστά.
 
 ---
 
 ## 5. Tests
 
 ```bash
-npm test          # 57 unit tests, μία φορά
+npm test           # 60 unit tests, μία φορά
 npm run test:watch # watch mode
-npm run e2e       # 14 έλεγχοι σε πραγματικό browser, desktop και κινητό
+npm run e2e        # 20 έλεγχοι σε πραγματικό browser, desktop και κινητό
+npm run check:build # ότι το build δουλεύει στον υποφάκελο του server
 ```
 
-Το `src/App.test.js` καλύπτει τις έξι διαδρομές που είχαν σπάσει στο παρελθόν:
-επιτυχής αναζήτηση, 404, λέξη χωρίς ήχο, σημασία χωρίς `synonyms`, δεύτερη
-αναζήτηση της ίδιας λέξης, και κωδικοποίηση του όρου στο URL.
+Το `src/App.test.jsx` κρατάει καταγεγραμμένη κάθε διαδρομή που έχει σπάσει
+κάποια στιγμή. Οι browser έλεγχοι πιάνουν αυτά που τα unit tests δεν βλέπουν:
+layout που ξεχειλίζει στο κινητό, ηχητικό αρχείο που δεν κατεβαίνει, και τη
+σελίδα να ανοίγει με το δίκτυο κατεβασμένο.
 
 Και τα δύο τρέχουν αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`.
 Ξεχωριστά, ένα ημερήσιο job (`.github/workflows/api-contract.yml`) χτυπά τις
@@ -109,23 +140,32 @@ npm run e2e       # 14 έλεγχοι σε πραγματικό browser, desktop
 
 ```
 src/
-├── index.js            # entry point, mount του App
+├── index.jsx           # entry point, mount του App, εγγραφή του service worker
 ├── index.css           # CSS variables + light/dark themes (body.light / body.dark)
-├── App.js              # theme, όρος αναζήτησης, επιλογή τι δείχνει η οθόνη
-├── App.css             # error toast, placeholder, layout wrapper
-├── useDictionary.js    # το fetch: status/data/error, ακύρωση, encoding, δεύτερη πηγή
-├── wiktionary.js       # εφεδρική πηγή όταν η κύρια API δεν απαντά
-├── wordCache.js        # αποθηκευμένες λέξεις + ιστορικό αναζητήσεων
-├── urlTerm.js          # η λέξη στη γραμμή διευθύνσεων (?w=...)
-├── RecentWords.js      # τα chips με τις πρόσφατες λέξεις στην κενή οθόνη
-├── ErrorBoundary.js    # κρατάει μια κακοσχηματισμένη απάντηση από το να σβήσει τη σελίδα
-├── ResultSkeleton.js   # placeholder όσο φορτώνει
-├── Header.js/.css      # λογότυπο + διακόπτης θέματος
-├── Search.js/.css      # φόρμα αναζήτησης (autofocus στο mount)
-├── WordDisplay.js      # ομαδοποίηση σημασιών ανά μέρος του λόγου + render
-├── WordDisplay.css     # τυπογραφία αποτελεσμάτων, play button
-├── App.test.js         # τα tests
-└── images/icons/       # moon.svg, sun.svg
+├── App.jsx / .css      # layout και τι δείχνει η οθόνη
+├── useDictionary.js    # η αναζήτηση: πηγές, προθεσμίες, cache, είδη αποτυχίας
+├── wiktionary.js       # δεύτερη πηγή, σε σχήμα ίδιο με την πρώτη
+├── datamuse.js         # προτάσεις ορθογραφίας, συμπληρώσεις, συχνότητα, ρίμες
+├── etymology.js        # η ενότητα «Origin», από σελίδα του Wiktionary
+├── wordCache.js        # αποθηκευμένες λέξεις — και το ιστορικό μαζί
+├── favourites.js       # αστεράκια, export σε CSV και Anki
+├── studySchedule.js    # κουτιά Leitner για την επανάληψη
+├── backup.js           # export/restore σε JSON
+├── urlTerm.js          # η λέξη και η γλώσσα στη γραμμή διευθύνσεων
+├── usePreferences.js   # θέμα και γραμματοσειρά
+├── useWordRequest.js   # η λέξη στην οθόνη και το ιστορικό του browser
+├── useSuggestions.js   # «μήπως εννοούσες» μετά από 404
+├── Search.jsx          # φόρμα αναζήτησης, combobox με βελάκια
+├── WordDisplay.jsx     # ομαδοποίηση σημασιών, προφορά, ρίμες, ετυμολογία
+├── StudyCards.jsx      # οι κάρτες επανάληψης
+├── StudyProgress.jsx   # η κατανομή στα κουτιά
+├── RecentWords.jsx     # πρόσφατες και αποθηκευμένες λέξεις
+├── App.test.jsx        # τα unit tests
+└── …                   # Header, ErrorBoundary, ResultSkeleton, icons, stylesheets
+
+e2e/                    # οι έλεγχοι σε πραγματικό browser
+scripts/                # check-apis.mjs, check-build.mjs
+public/service-worker.js # το app shell που ανοίγει χωρίς δίκτυο
 ```
 
 **Πλοήγηση:** η λέξη ζει στο URL ως `?w=<word>`. Κάθε αναζήτηση, κλικ σε

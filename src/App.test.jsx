@@ -49,13 +49,59 @@ const lookupSources = () =>
     )
     .map((url) => (url.includes('wiktionary.org') ? 'wiktionary' : 'primary'));
 
+/**
+ * Lets whatever the app still has in flight — an entry that is still arriving,
+ * or one of the optional extras — finish inside act(). A test that walks away
+ * mid-request leaves React updating a tree nobody is watching, and React says
+ * so, once per update: a hundred warnings a run is where a real one hides.
+ *
+ * Microtasks only: one test drives the lookup deadline with fake timers, and
+ * waiting on a real one there would never return.
+ */
+const settle = () =>
+  act(async () => {
+    const drainMicrotasks = async () => {
+      for (let turn = 0; turn < 20; turn += 1) await Promise.resolve();
+    };
+
+    await drainMicrotasks();
+    // One turn of the event loop as well, for work that is waiting on a timer
+    // rather than on a promise — except where a test is driving the clock
+    // itself, in which case a real timer would never come back.
+    if (!vi.isFakeTimers()) await new Promise((resolve) => setTimeout(resolve, 0));
+    await drainMicrotasks();
+  });
+
 const search = (word) => {
   fireEvent.change(screen.getByLabelText('Search for a word'), { target: { value: word } });
   fireEvent.submit(screen.getByLabelText('Search for a word').closest('form'));
 };
 
+const isExtra = (url) => url.includes('datamuse.com') || url.includes('api.php');
+
+/**
+ * Installs the fetch mock for a test. Requests for the optional extras —
+ * frequency, rhymes, completions, etymology — are answered with nothing before
+ * the test's own handler ever sees them, unless the test says `extras: true`.
+ *
+ * That default is what silenced a hundred act() warnings a run. A mock written
+ * for the dictionary answered Datamuse too, so rhymes and completions came back
+ * with real words and their state landed after the test had stopped asserting.
+ * Now nothing is in flight unless a test asked for it, and a test that wants an
+ * extra has to say so — which also stops it depending on an extra by accident.
+ */
+const stubFetch = (handler, { extras = false } = {}) => {
+  global.fetch = vi.fn((url, options) => {
+    const target = String(url);
+    if (!extras && isExtra(target)) {
+      return target.includes('api.php') ? mockJson({}) : mockJson([]);
+    }
+    return handler(target, options);
+  });
+};
+
 beforeEach(() => {
-  global.fetch = vi.fn(() => mockJson([entry()]));
+  stubFetch(() => mockJson([entry()]));
   window.localStorage.clear();
   resetPrimaryBreaker(); // module-level state must not leak between tests
   window.history.replaceState({}, '', '/'); // nor must the address bar
@@ -76,7 +122,7 @@ test('renders the word, its definition and the play button', async () => {
 });
 
 test('shows an error message when the word is not found', async () => {
-  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
+  stubFetch(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -87,7 +133,7 @@ test('shows an error message when the word is not found', async () => {
 
 test('says a failed fetch is a connection problem, and offers a retry', async () => {
   // fetch() rejects with a TypeError when the request never reaches the server.
-  global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  stubFetch(() => Promise.reject(new TypeError('Failed to fetch')));
   render(<App />);
   search('hello');
 
@@ -100,13 +146,13 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
 
-  global.fetch = vi.fn(() => mockJson([entry()]));
+  stubFetch(() => mockJson([entry()]));
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
 });
 
 test('offers no retry for a word that simply does not exist', async () => {
-  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
+  stubFetch(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -114,8 +160,73 @@ test('offers no retry for a word that simply does not exist', async () => {
   expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
 });
 
+/**
+ * The recordings come from someone else's server, and one of them being gone is
+ * the ordinary case, not the exotic one. `play()` rejecting and the element
+ * firing `error` are two different ways of the same thing happening.
+ */
+const stubAudio = (behaviour) => {
+  const created = [];
+  vi.stubGlobal(
+    'Audio',
+    class {
+      constructor(src) {
+        this.src = src;
+        created.push(this);
+      }
+
+      play() {
+        return behaviour === 'rejects' ? Promise.reject(new Error('blocked')) : Promise.resolve();
+      }
+    }
+  );
+  return created;
+};
+
+test('says so when the browser refuses to play a recording', async () => {
+  stubAudio('rejects');
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Play pronunciation' }));
+
+  expect(await screen.findByText(/would not play/i)).toBeInTheDocument();
+  // The phonetic spelling is the point of the section, and it stays.
+  expect(screen.getByText('/\u02c8ki\u02d0b\u0254\u02d0d/')).toBeInTheDocument();
+});
+
+test('says so when the recording itself cannot be loaded', async () => {
+  const created = stubAudio('resolves');
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Play pronunciation' }));
+  await settle();
+  expect(screen.queryByText(/would not play/i)).not.toBeInTheDocument();
+
+  // The file is missing: the element reports it after playback was requested.
+  act(() => created[0].onerror(new Event('error')));
+  expect(screen.getByText(/would not play/i)).toBeInTheDocument();
+});
+
+test('forgets a failed recording when the next word opens', async () => {
+  stubAudio('rejects');
+  stubFetch((url) => mockJson([entry({ word: decodeURIComponent(url.split('/').pop()) })]));
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  fireEvent.click(screen.getByRole('button', { name: 'Play pronunciation' }));
+  await screen.findByText(/would not play/i);
+
+  search('cat');
+  await screen.findByRole('heading', { name: 'cat' });
+  expect(screen.queryByText(/would not play/i)).not.toBeInTheDocument();
+});
+
 test('hides the play button but still shows the phonetic text when there is no audio', async () => {
-  global.fetch = vi.fn(() =>
+  stubFetch(() =>
     mockJson([entry({ phonetics: [{ text: '/eɪ/', audio: '' }] })])
   );
   render(<App />);
@@ -126,7 +237,7 @@ test('hides the play button but still shows the phonetic text when there is no a
 });
 
 test('renders a meaning that carries no synonyms or antonyms', async () => {
-  global.fetch = vi.fn(() =>
+  stubFetch(() =>
     mockJson([
       entry({
         meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'No synonyms key.' }] }],
@@ -153,6 +264,7 @@ test('searching the same word twice sends a second request', async () => {
   await waitFor(() =>
     expect(dictionaryCalls()).toHaveLength(2)
   );
+  await settle();
 });
 
 test('encodes the search term into the request URL', async () => {
@@ -163,6 +275,7 @@ test('encodes the search term into the request URL', async () => {
   expect(global.fetch.mock.calls[0][0]).toBe(
     'https://api.dictionaryapi.dev/api/v2/entries/en/a%20b%2Fc'
   );
+  await settle();
 });
 
 test('stops asking a primary that just failed, and goes straight to Wiktionary', async () => {
@@ -174,10 +287,11 @@ test('stops asking a primary that just failed, and goes straight to Wiktionary',
 
   global.fetch.mockClear();
   search('other');
-  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  await settle();
 
   // The second search skips the dead primary entirely.
   await waitFor(() => expect(lookupSources()).toEqual(['wiktionary']));
+  await settle();
 });
 
 test('gives the primary another chance when the reader asks for one', async () => {
@@ -186,7 +300,7 @@ test('gives the primary another chance when the reader asks for one', async () =
   search('word');
   await screen.findByText(/straight from Wiktionary/i, {}, { timeout: 4000 });
 
-  global.fetch = vi.fn(() => mockJson([entry()]));
+  stubFetch(() => mockJson([entry()]));
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
   await screen.findByRole('heading', { name: 'keyboard' });
@@ -195,7 +309,7 @@ test('gives the primary another chance when the reader asks for one', async () =
 
 test('gives up on a hanging request instead of waiting forever', async () => {
   vi.useFakeTimers();
-  global.fetch = vi.fn((url, options) => {
+  stubFetch((url, options) => {
     if (String(url).includes('wiktionary.org')) return mockJson(wiktionaryPayload);
     // Never settles on its own; only the deadline can end it.
     return new Promise((resolve, reject) => {
@@ -227,7 +341,7 @@ test('shows a saved copy immediately, then replaces it with the fresh one', asyn
   resetPrimaryBreaker();
 
   let release;
-  global.fetch = vi.fn(
+  stubFetch(
     () => new Promise((resolve) => { release = () => resolve(mockJson([entry({ word: 'keyboard', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A fresher definition.' }], synonyms: [], antonyms: [] }] })])); })
   );
 
@@ -248,7 +362,7 @@ test('falls back to a saved copy when the service goes away', async () => {
   await screen.findByRole('heading', { name: 'keyboard' });
   unmount();
 
-  global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  stubFetch(() => Promise.reject(new TypeError('Failed to fetch')));
   render(<App />);
   search('keyboard');
 
@@ -268,11 +382,12 @@ test('keeps a saved entry on screen when a refresh 404s, but never fetches one',
   unmount();
   resetPrimaryBreaker();
 
-  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
+  stubFetch(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('keyboard');
 
-  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  await settle(); // let the 404 be handled, then look at what is on screen
+  expect(global.fetch).toHaveBeenCalled();
   expect(screen.getByText('A set of keys.')).toBeInTheDocument();
   expect(screen.queryByText(/No results for/)).not.toBeInTheDocument();
   // Nothing stale is advertised, and the fallback is never consulted for a 404.
@@ -280,10 +395,11 @@ test('keeps a saved entry on screen when a refresh 404s, but never fetches one',
   expect(
     global.fetch.mock.calls.every(([url]) => !/wiktionary\.org\/api\/rest_v1/.test(String(url)))
   ).toBe(true);
+  await settle();
 });
 
 test('shows no results for an unknown word it has never seen', async () => {
-  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
+  stubFetch(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -346,7 +462,7 @@ test('falls back to Wiktionary when the primary dictionary is unreachable', asyn
 });
 
 test('does not consult Wiktionary when the word simply does not exist', async () => {
-  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
+  stubFetch(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -358,7 +474,7 @@ test('does not consult Wiktionary when the word simply does not exist', async ()
 });
 
 test('reports the failure when both sources are away and nothing is saved', async () => {
-  global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  stubFetch(() => Promise.reject(new TypeError('Failed to fetch')));
   render(<App />);
   search('word');
 
@@ -396,18 +512,24 @@ test('opens the word the address bar arrives with', async () => {
 });
 
 test('follows the browser back button between words', async () => {
+  // Every word answers with its own entry, so the heading proves which one the
+  // page is actually showing.
+  stubFetch((url) => mockJson([entry({ word: decodeURIComponent(url.split('/').pop()) })]));
   render(<App />);
 
   search('keyboard');
-  await waitFor(() => expect(window.location.search).toBe('?w=keyboard'));
+  await screen.findByRole('heading', { name: 'keyboard' });
+  expect(window.location.search).toBe('?w=keyboard');
   search('cat');
-  await waitFor(() => expect(window.location.search).toBe('?w=cat'));
+  await screen.findByRole('heading', { name: 'cat' });
+  expect(window.location.search).toBe('?w=cat');
 
   // jsdom updates the URL but does not fire popstate for us.
   window.history.replaceState({}, '', '/?w=keyboard');
   fireEvent.popState(window);
 
   await waitFor(() => expect(screen.getByLabelText('Search for a word')).toHaveValue('keyboard'));
+  await settle();
 });
 
 test('offers recently looked-up words on the empty screen, and can forget them', async () => {
@@ -423,6 +545,7 @@ test('offers recently looked-up words on the empty screen, and can forget them',
   fireEvent.click(chip);
   expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
   expect(window.location.search).toBe('?w=keyboard');
+  await settle();
 });
 
 test('shows no recent words before anything has been looked up', () => {
@@ -445,7 +568,7 @@ test('clearing the recent words empties the list', async () => {
 });
 
 test('a synonym starts a new lookup', async () => {
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('electronic')
       ? mockJson([entry({ word: 'electronic keyboard' })])
       : mockJson([entry()])
@@ -465,12 +588,12 @@ test('a synonym starts a new lookup', async () => {
 
 
 test('suggests words spelled like the one that was not found', async () => {
-  global.fetch = vi.fn((url) => {
+  stubFetch((url) => {
     if (String(url).includes('datamuse.com')) {
       return mockJson([{ word: 'keyboard' }, { word: 'keybox' }, { word: 'zzzzqqq' }]);
     }
     return mockJson({}, { ok: false, status: 404 });
-  });
+  }, { extras: true });
 
   render(<App />);
   search('zzzzqqq');
@@ -481,14 +604,15 @@ test('suggests words spelled like the one that was not found', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'keyboard' }));
   expect(window.location.search).toBe('?w=keyboard');
+  await settle();
 });
 
 test('a suggestion service that is down costs the reader nothing', async () => {
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('datamuse.com')
       ? Promise.reject(new TypeError('Failed to fetch'))
       : mockJson({}, { ok: false, status: 404 })
-  );
+  , { extras: true });
 
   render(<App />);
   search('zzzzqqq');
@@ -499,7 +623,7 @@ test('a suggestion service that is down costs the reader nothing', async () => {
 });
 
 test('offers one button per recording when the word has several', async () => {
-  global.fetch = vi.fn(() =>
+  stubFetch(() =>
     mockJson([
       entry({
         phonetics: [
@@ -569,6 +693,7 @@ test('offers a word of the day that opens like any other search', async () => {
   fireEvent.click(button);
 
   await waitFor(() => expect(window.location.search).toBe(`?w=${daily}`));
+  await settle();
 });
 
 test('the word of the day is stable within a day and changes across days', () => {
@@ -623,6 +748,7 @@ test('reads a word in another language, and says so in the address bar', async (
     expect(dictionaryCalls().some(([url]) => String(url).includes('/entries/es/'))).toBe(true)
   );
   expect(window.location.search).toContain('l=es');
+  await settle();
 });
 
 test('keeps each language its own entry in the saved words', async () => {
@@ -636,12 +762,12 @@ test('keeps each language its own entry in the saved words', async () => {
 });
 
 test('shows how common a word is when the frequency service answers', async () => {
-  global.fetch = vi.fn((url) => {
+  stubFetch((url) => {
     if (String(url).includes('datamuse.com')) {
       return mockJson([{ word: 'keyboard', tags: ['n', 'f:12.5'] }]);
     }
     return mockJson([entry()]);
-  });
+  }, { extras: true });
 
   render(<App />);
   search('keyboard');
@@ -650,11 +776,11 @@ test('shows how common a word is when the frequency service answers', async () =
 });
 
 test('offers completions while typing, and Escape closes them', async () => {
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('datamuse.com')
       ? mockJson([{ word: 'keyboard' }, { word: 'keyboardist' }])
       : mockJson([entry()])
-  );
+  , { extras: true });
 
   render(<App />);
   const input = screen.getByLabelText('Search for a word');
@@ -673,25 +799,26 @@ test('offers completions while typing, and Escape closes them', async () => {
 });
 
 test('choosing a completion runs that search', async () => {
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('datamuse.com')
       ? mockJson([{ word: 'keyboardist' }])
       : mockJson([entry()])
-  );
+  , { extras: true });
 
   render(<App />);
   fireEvent.change(screen.getByLabelText('Search for a word'), { target: { value: 'keyb' } });
 
   fireEvent.click(await screen.findByRole('option', { name: 'keyboardist' }, { timeout: 3000 }));
   await waitFor(() => expect(window.location.search).toBe('?w=keyboardist'));
+  await settle();
 });
 
 test('arrow keys walk the suggestions and Enter takes the highlighted one', async () => {
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('datamuse.com')
       ? mockJson([{ word: 'keyboard' }, { word: 'keyboardist' }])
       : mockJson([entry()])
-  );
+  , { extras: true });
 
   render(<App />);
   const input = screen.getByLabelText('Search for a word');
@@ -715,10 +842,11 @@ test('arrow keys walk the suggestions and Enter takes the highlighted one', asyn
 
   fireEvent.keyDown(input, { key: 'Enter' });
   await waitFor(() => expect(window.location.search).toBe('?w=keyboard'));
+  await settle();
 });
 
 test('shows the origin of a word when Wiktionary has one', async () => {
-  global.fetch = vi.fn((url) => {
+  stubFetch((url) => {
     if (String(url).includes('api.php')) {
       return mockJson({
         parse: {
@@ -729,7 +857,7 @@ test('shows the origin of a word when Wiktionary has one', async () => {
       });
     }
     return mockJson([entry()]);
-  });
+  }, { extras: true });
 
   render(<App />);
   search('keyboard');
@@ -741,11 +869,11 @@ test('shows the origin of a word when Wiktionary has one', async () => {
 });
 
 test('says nothing about origin when the page has no etymology section', async () => {
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('api.php')
       ? mockJson({ parse: { text: '<h2>English</h2><h3>Noun</h3><p>Only a definition.</p>' } })
       : mockJson([entry()])
-  );
+  , { extras: true });
 
   render(<App />);
   search('keyboard');
@@ -781,7 +909,7 @@ test('long entries collapse, and open on request', async () => {
   const many = Array.from({ length: 7 }, (unused, index) => ({
     definition: `Sense number ${index + 1}.`,
   }));
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('dictionaryapi')
       ? mockJson([entry({ meanings: [{ partOfSpeech: 'noun', definitions: many, synonyms: [], antonyms: [] }] })])
       : mockJson([])
@@ -801,13 +929,13 @@ test('long entries collapse, and open on request', async () => {
 });
 
 test('offers rhymes and similar words, each a new lookup', async () => {
-  global.fetch = vi.fn((url) => {
+  stubFetch((url) => {
     const target = String(url);
     if (target.includes('rel_rhy')) return mockJson([{ word: 'fjord' }]);
     if (target.includes('ml=')) return mockJson([{ word: 'typewriter' }]);
     if (target.includes('datamuse')) return mockJson([]);
     return mockJson([entry()]);
-  });
+  }, { extras: true });
 
   render(<App />);
   search('keyboard');
@@ -817,6 +945,7 @@ test('offers rhymes and similar words, each a new lookup', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'typewriter' }));
   await waitFor(() => expect(window.location.search).toBe('?w=typewriter'));
+  await settle();
 });
 
 test('a card answered correctly leaves the queue', async () => {
@@ -921,7 +1050,7 @@ test('a chosen sense is what the card asks about', async () => {
       },
     ],
   });
-  global.fetch = vi.fn((url) =>
+  stubFetch((url) =>
     String(url).includes('dictionaryapi') ? mockJson([twoSenses]) : mockJson([])
   );
 

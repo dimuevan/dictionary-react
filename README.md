@@ -54,15 +54,17 @@ Full instructions, including the production build and its one trap, are in
 [RUN.md](RUN.md).
 
 ```bash
-npm test           # 57 unit tests
-npm run e2e        # 14 browser checks, desktop and phone
-npm run build      # production build for the hosting subdirectory
-npm run check:apis # the shapes the three services are expected to return
+npm test            # 60 unit tests
+npm run e2e         # 20 browser checks, desktop and phone
+npm run build       # production build for the hosting subdirectory
+npm run check:build # that the build works where it is deployed
+npm run check:apis  # the shapes the three services are expected to return
 ```
 
 Both suites run on every push — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-A third workflow checks the real services against the shapes this app expects,
-once a day, because every test here mocks the network.
+A second workflow checks the real services against the shapes this app expects,
+once a day, because every test here mocks the network. A third builds and
+uploads the site once CI is green on `main`.
 
 ---
 

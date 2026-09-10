@@ -540,3 +540,15 @@ ul li::marker {
   @media (prefers-reduced-motion: reduce) {
     .sense-button { transition: none; }
   }
+
+  /* A recording that will not play is a small failure, and says so quietly —
+     but it does say so, rather than leaving the button looking broken. */
+  .audio-failed {
+    margin-top: 8px;
+    font-size: 14px;
+    color: #b3261e;
+  }
+
+  body.dark .audio-failed {
+    color: #ff9b93;
+  }

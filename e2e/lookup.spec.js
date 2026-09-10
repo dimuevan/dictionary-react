@@ -40,6 +40,9 @@ const stubNetwork = async (page, { dictionary = 200 } = {}) => {
       if (url.includes('*')) return json([{ word: 'keyboard' }, { word: 'keyboardist' }]);
       return json([{ word: 'keyboard' }]);
     }
+    // The recordings live on someone else's server. Nothing here plays one, so
+    // every request for one is a miss — which is the case worth checking.
+    if (url.endsWith('.mp3')) return route.fulfill({ status: 404, body: 'gone' });
     return route.continue();
   });
 };
@@ -131,4 +134,16 @@ test('the page holds together at phone width', async ({ page }) => {
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth
   );
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test('says so when a recording will not play', async ({ page }) => {
+  await stubNetwork(page);
+  await page.goto('/?w=keyboard');
+
+  await expect(page.locator('.word-title')).toHaveText('keyboard');
+  await page.click('.audio-button');
+
+  // A real browser, a real missing file: the button used to go quiet here.
+  await expect(page.locator('.audio-failed')).toBeVisible();
+  await expect(page.locator('.phonetic-text')).toBeVisible();
 });
