@@ -28,6 +28,11 @@ jobs:
         env:
           CI: true
 
+      # The deploy subdirectory is baked into every asset path at build time,
+      # and getting it wrong produces a page that loads and renders nothing.
+      - name: Check the build would work where it is deployed
+        run: npm run check:build
+
   browser:
     name: Browser checks
     runs-on: ubuntu-latest
