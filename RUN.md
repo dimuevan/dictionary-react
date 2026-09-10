@@ -24,9 +24,8 @@ cd dictionary-react
 npm install
 ```
 
-Το `npm install` παίρνει ~20 δευτερόλεπτα και κατεβάζει ~1550 πακέτα.
-Θα δεις `npm warn deprecated ...` — είναι φυσιολογικό (το Create React App δεν
-συντηρείται πια), δεν σπάει τίποτα.
+Το `npm install` παίρνει λίγα δευτερόλεπτα. Το project έφυγε από το Create React
+App και χτίζεται πλέον με **Vite**.
 
 ---
 
@@ -36,18 +35,11 @@ npm install
 npm start
 ```
 
-- Ανοίγει αυτόματα στο **http://localhost:3000**
+- **http://localhost:3000** — ο dev server σηκώνεται σε κλάσματα του δευτερολέπτου
 - Hot reload: κάθε αλλαγή σε `src/` ανανεώνει τη σελίδα μόνη της
 - Σταμάτημα: `Ctrl + C`
 
-Αν η θύρα 3000 είναι πιασμένη:
-
-```bash
-PORT=3001 npm start          # macOS / Linux
-set PORT=3001 && npm start   # Windows cmd
-```
-
-Αν δεν θέλεις να ανοίγει μόνο του browser: `BROWSER=none npm start`
+Αν η θύρα 3000 είναι πιασμένη: `npm start -- --port 3001`
 
 ### Τι να δοκιμάσεις μόλις ανοίξει
 1. Γράψε `keyboard` και πάτα **Enter** (ή το εικονίδιο lupa)
@@ -61,15 +53,16 @@ set PORT=3001 && npm start   # Windows cmd
 
 ## 4. Play — production build (αυτό που ανεβαίνει στο server)
 
-Το `package.json` έχει `"homepage": "http://dev.iamevandimu.com/challenges/react/dictionearch/"`,
-οπότε το κανονικό build βάζει **απόλυτα paths** (`/challenges/react/dictionearch/static/...`).
-Αν το ανοίξεις τοπικά στη ρίζα, θα δεις **λευκή σελίδα** — δεν είναι bug, είναι το homepage.
+Το `vite.config.js` ορίζει `base: '/challenges/react/dictionearch/'`, οπότε το
+κανονικό build βάζει **απόλυτα paths** (`/challenges/react/dictionearch/assets/...`).
+Αν το ανοίξεις τοπικά στη ρίζα, θα δεις **λευκή σελίδα** — δεν είναι bug, είναι η
+βάση. Ο dev server δεν επηρεάζεται: σερβίρει πάντα από τη ρίζα.
 
-**Για τοπικό preview** (relative paths):
+**Για τοπικό preview:**
 
 ```bash
-PUBLIC_URL=. npm run build
-npx http-server build -p 4173
+VITE_BASE=/ npm run build
+npm run preview
 # → http://localhost:4173
 ```
 
@@ -85,16 +78,18 @@ npm run build
 ## 5. Tests
 
 ```bash
-npm test          # watch mode, πάτα q για έξοδο
-CI=true npm test  # μία φορά και τέλος (για CI)
+npm test          # 57 unit tests, μία φορά
+npm run test:watch # watch mode
+npm run e2e       # 14 έλεγχοι σε πραγματικό browser, desktop και κινητό
 ```
 
 Το `src/App.test.js` καλύπτει τις έξι διαδρομές που είχαν σπάσει στο παρελθόν:
 επιτυχής αναζήτηση, 404, λέξη χωρίς ήχο, σημασία χωρίς `synonyms`, δεύτερη
 αναζήτηση της ίδιας λέξης, και κωδικοποίηση του όρου στο URL.
 
-Το ίδιο τρέχει αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`
-(`npm ci` → tests → build).
+Και τα δύο τρέχουν αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`.
+Ξεχωριστά, ένα ημερήσιο job (`.github/workflows/api-contract.yml`) χτυπά τις
+**πραγματικές** υπηρεσίες και ελέγχει ότι δεν άλλαξε το σχήμα τους.
 
 ---
 
@@ -102,11 +97,11 @@ CI=true npm test  # μία φορά και τέλος (για CI)
 
 | Σύμπτωμα | Αιτία / Λύση |
 |---|---|
-| Λευκή σελίδα στο production preview | Έκανες `npm run build` χωρίς `PUBLIC_URL=.` — δες §4 |
-| `Something is already running on port 3000` | `PORT=3001 npm start` ή κλείσε την άλλη διεργασία |
+| Λευκή σελίδα στο production preview | Έκανες `npm run build` χωρίς `VITE_BASE=/` — δες §4 |
+| `Port 3000 is in use` | `npm start -- --port 3001` |
 | Οι αναζητήσεις δεν φέρνουν τίποτα | Έλεγξε δίκτυο/firewall προς `api.dictionaryapi.dev` (public API, χωρίς key) |
 | `Module not found` μετά από git pull | Ξανατρέξε `npm install` |
-| Το build σταματά σε CI | Το `CI=true` μετατρέπει τα lint warnings σε errors — τρέξε `npm run build` τοπικά για να τα δεις |
+| Το build σταματά σε CI | Τρέξε `npm run build` τοπικά για να δεις το ίδιο σφάλμα |
 
 ---
 

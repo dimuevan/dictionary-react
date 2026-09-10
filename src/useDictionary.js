@@ -193,7 +193,7 @@ const useDictionary = (request) => {
         }
       }
 
-      if (process.env.NODE_ENV !== 'production' && primaryError) {
+      if (import.meta.env.DEV && primaryError) {
         console.warn('[dictionearch] primary lookup failed for "%s":', term, primaryError);
       }
 
@@ -217,7 +217,7 @@ const useDictionary = (request) => {
         }
       } catch (fallbackError) {
         if (signal.aborted) return;
-        if (process.env.NODE_ENV !== 'production') {
+        if (import.meta.env.DEV) {
           console.warn('[dictionearch] wiktionary fallback failed:', fallbackError);
         }
       } finally {

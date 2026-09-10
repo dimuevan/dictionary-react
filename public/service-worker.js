@@ -5,6 +5,9 @@
  * themselves are already kept in localStorage by the app, so this is only about
  * getting the page itself to load offline.
  *
+ * Build assets live under /assets/ and carry a content hash, so they can be
+ * cached indefinitely; the page itself cannot.
+ *
  * Strategy: network first for navigation (so a deploy is picked up straight
  * away), cache first for hashed build assets (which never change in place).
  */
@@ -46,7 +49,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.includes('/static/')) {
+  if (url.pathname.includes('/assets/')) {
     event.respondWith(
       caches.match(request).then(
         (hit) =>

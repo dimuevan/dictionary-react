@@ -1,15 +1,15 @@
 import './Header.css'; // Assuming you have a CSS file for styling
 
-import { ReactComponent as MoonIcon } from './images/icons/moon.svg';
 import React from 'react';
 
+import { MoonIcon, SunIcon } from './icons';
+
 import { LANGUAGES } from './languages';
-import { ReactComponent as SunIcon } from './images/icons/sun.svg';
 
 const Header = ({ onThemeToggle, theme, font, onFontChange, lang, onLanguageChange }) => {
   return (
     <header className="header">
-      <a href={`${process.env.PUBLIC_URL}/`} className="logo--link">
+      <a href={import.meta.env.BASE_URL} className="logo--link">
         <div className="logo--text" title="Dictionearch">
           <span className='fulllogo'>Dictionearch</span>
           <span className='monogram'>D</span>

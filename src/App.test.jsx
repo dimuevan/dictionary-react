@@ -55,14 +55,14 @@ const search = (word) => {
 };
 
 beforeEach(() => {
-  global.fetch = jest.fn(() => mockJson([entry()]));
+  global.fetch = vi.fn(() => mockJson([entry()]));
   window.localStorage.clear();
   resetPrimaryBreaker(); // module-level state must not leak between tests
   window.history.replaceState({}, '', '/'); // nor must the address bar
 });
 
 afterEach(() => {
-  jest.restoreAllMocks();
+  vi.restoreAllMocks();
 });
 
 test('renders the word, its definition and the play button', async () => {
@@ -76,7 +76,7 @@ test('renders the word, its definition and the play button', async () => {
 });
 
 test('shows an error message when the word is not found', async () => {
-  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -87,7 +87,7 @@ test('shows an error message when the word is not found', async () => {
 
 test('says a failed fetch is a connection problem, and offers a retry', async () => {
   // fetch() rejects with a TypeError when the request never reaches the server.
-  global.fetch = jest.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
   render(<App />);
   search('hello');
 
@@ -100,13 +100,13 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
 
-  global.fetch = jest.fn(() => mockJson([entry()]));
+  global.fetch = vi.fn(() => mockJson([entry()]));
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
   expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
 });
 
 test('offers no retry for a word that simply does not exist', async () => {
-  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -115,7 +115,7 @@ test('offers no retry for a word that simply does not exist', async () => {
 });
 
 test('hides the play button but still shows the phonetic text when there is no audio', async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     mockJson([entry({ phonetics: [{ text: '/eɪ/', audio: '' }] })])
   );
   render(<App />);
@@ -126,7 +126,7 @@ test('hides the play button but still shows the phonetic text when there is no a
 });
 
 test('renders a meaning that carries no synonyms or antonyms', async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     mockJson([
       entry({
         meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'No synonyms key.' }] }],
@@ -186,7 +186,7 @@ test('gives the primary another chance when the reader asks for one', async () =
   search('word');
   await screen.findByText(/straight from Wiktionary/i, {}, { timeout: 4000 });
 
-  global.fetch = jest.fn(() => mockJson([entry()]));
+  global.fetch = vi.fn(() => mockJson([entry()]));
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
   await screen.findByRole('heading', { name: 'keyboard' });
@@ -194,8 +194,8 @@ test('gives the primary another chance when the reader asks for one', async () =
 });
 
 test('gives up on a hanging request instead of waiting forever', async () => {
-  jest.useFakeTimers();
-  global.fetch = jest.fn((url, options) => {
+  vi.useFakeTimers();
+  global.fetch = vi.fn((url, options) => {
     if (String(url).includes('wiktionary.org')) return mockJson(wiktionaryPayload);
     // Never settles on its own; only the deadline can end it.
     return new Promise((resolve, reject) => {
@@ -211,9 +211,9 @@ test('gives up on a hanging request instead of waiting forever', async () => {
   search('word');
 
   await act(async () => {
-    jest.advanceTimersByTime(4000); // past the 3.5s primary deadline
+    vi.advanceTimersByTime(4000); // past the 3.5s primary deadline
   });
-  jest.useRealTimers();
+  vi.useRealTimers();
 
   expect(await screen.findByRole('heading', { name: 'word' })).toBeInTheDocument();
   expect(screen.getByText(/straight from Wiktionary/i)).toBeInTheDocument();
@@ -227,7 +227,7 @@ test('shows a saved copy immediately, then replaces it with the fresh one', asyn
   resetPrimaryBreaker();
 
   let release;
-  global.fetch = jest.fn(
+  global.fetch = vi.fn(
     () => new Promise((resolve) => { release = () => resolve(mockJson([entry({ word: 'keyboard', meanings: [{ partOfSpeech: 'noun', definitions: [{ definition: 'A fresher definition.' }], synonyms: [], antonyms: [] }] })])); })
   );
 
@@ -248,7 +248,7 @@ test('falls back to a saved copy when the service goes away', async () => {
   await screen.findByRole('heading', { name: 'keyboard' });
   unmount();
 
-  global.fetch = jest.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
   render(<App />);
   search('keyboard');
 
@@ -268,7 +268,7 @@ test('keeps a saved entry on screen when a refresh 404s, but never fetches one',
   unmount();
   resetPrimaryBreaker();
 
-  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('keyboard');
 
@@ -283,7 +283,7 @@ test('keeps a saved entry on screen when a refresh 404s, but never fetches one',
 });
 
 test('shows no results for an unknown word it has never seen', async () => {
-  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -315,7 +315,7 @@ const wiktionaryPayload = {
 };
 
 const failPrimaryThen = (wiktionaryResponse) =>
-  jest.fn((url) =>
+  vi.fn((url) =>
     String(url).includes('wiktionary.org')
       ? wiktionaryResponse()
       : Promise.reject(new TypeError('Failed to fetch'))
@@ -346,7 +346,7 @@ test('falls back to Wiktionary when the primary dictionary is unreachable', asyn
 });
 
 test('does not consult Wiktionary when the word simply does not exist', async () => {
-  global.fetch = jest.fn(() => mockJson({}, { ok: false, status: 404 }));
+  global.fetch = vi.fn(() => mockJson({}, { ok: false, status: 404 }));
   render(<App />);
   search('zzzzqqq');
 
@@ -358,7 +358,7 @@ test('does not consult Wiktionary when the word simply does not exist', async ()
 });
 
 test('reports the failure when both sources are away and nothing is saved', async () => {
-  global.fetch = jest.fn(() => Promise.reject(new TypeError('Failed to fetch')));
+  global.fetch = vi.fn(() => Promise.reject(new TypeError('Failed to fetch')));
   render(<App />);
   search('word');
 
@@ -445,7 +445,7 @@ test('clearing the recent words empties the list', async () => {
 });
 
 test('a synonym starts a new lookup', async () => {
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('electronic')
       ? mockJson([entry({ word: 'electronic keyboard' })])
       : mockJson([entry()])
@@ -465,7 +465,7 @@ test('a synonym starts a new lookup', async () => {
 
 
 test('suggests words spelled like the one that was not found', async () => {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     if (String(url).includes('datamuse.com')) {
       return mockJson([{ word: 'keyboard' }, { word: 'keybox' }, { word: 'zzzzqqq' }]);
     }
@@ -484,7 +484,7 @@ test('suggests words spelled like the one that was not found', async () => {
 });
 
 test('a suggestion service that is down costs the reader nothing', async () => {
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('datamuse.com')
       ? Promise.reject(new TypeError('Failed to fetch'))
       : mockJson({}, { ok: false, status: 404 })
@@ -499,7 +499,7 @@ test('a suggestion service that is down costs the reader nothing', async () => {
 });
 
 test('offers one button per recording when the word has several', async () => {
-  global.fetch = jest.fn(() =>
+  global.fetch = vi.fn(() =>
     mockJson([
       entry({
         phonetics: [
@@ -600,7 +600,7 @@ test('saves a word, offers it under Saved, and lets it be removed', async () => 
 });
 
 test('copies a shareable link for the word on screen', async () => {
-  const writeText = jest.fn(() => Promise.resolve());
+  const writeText = vi.fn(() => Promise.resolve());
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
   render(<App />);
@@ -636,7 +636,7 @@ test('keeps each language its own entry in the saved words', async () => {
 });
 
 test('shows how common a word is when the frequency service answers', async () => {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     if (String(url).includes('datamuse.com')) {
       return mockJson([{ word: 'keyboard', tags: ['n', 'f:12.5'] }]);
     }
@@ -650,7 +650,7 @@ test('shows how common a word is when the frequency service answers', async () =
 });
 
 test('offers completions while typing, and Escape closes them', async () => {
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('datamuse.com')
       ? mockJson([{ word: 'keyboard' }, { word: 'keyboardist' }])
       : mockJson([entry()])
@@ -673,7 +673,7 @@ test('offers completions while typing, and Escape closes them', async () => {
 });
 
 test('choosing a completion runs that search', async () => {
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('datamuse.com')
       ? mockJson([{ word: 'keyboardist' }])
       : mockJson([entry()])
@@ -687,7 +687,7 @@ test('choosing a completion runs that search', async () => {
 });
 
 test('arrow keys walk the suggestions and Enter takes the highlighted one', async () => {
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('datamuse.com')
       ? mockJson([{ word: 'keyboard' }, { word: 'keyboardist' }])
       : mockJson([entry()])
@@ -718,7 +718,7 @@ test('arrow keys walk the suggestions and Enter takes the highlighted one', asyn
 });
 
 test('shows the origin of a word when Wiktionary has one', async () => {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     if (String(url).includes('api.php')) {
       return mockJson({
         parse: {
@@ -741,7 +741,7 @@ test('shows the origin of a word when Wiktionary has one', async () => {
 });
 
 test('says nothing about origin when the page has no etymology section', async () => {
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('api.php')
       ? mockJson({ parse: { text: '<h2>English</h2><h3>Noun</h3><p>Only a definition.</p>' } })
       : mockJson([entry()])
@@ -781,7 +781,7 @@ test('long entries collapse, and open on request', async () => {
   const many = Array.from({ length: 7 }, (unused, index) => ({
     definition: `Sense number ${index + 1}.`,
   }));
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('dictionaryapi')
       ? mockJson([entry({ meanings: [{ partOfSpeech: 'noun', definitions: many, synonyms: [], antonyms: [] }] })])
       : mockJson([])
@@ -801,7 +801,7 @@ test('long entries collapse, and open on request', async () => {
 });
 
 test('offers rhymes and similar words, each a new lookup', async () => {
-  global.fetch = jest.fn((url) => {
+  global.fetch = vi.fn((url) => {
     const target = String(url);
     if (target.includes('rel_rhy')) return mockJson([{ word: 'fjord' }]);
     if (target.includes('ml=')) return mockJson([{ word: 'typewriter' }]);
@@ -921,7 +921,7 @@ test('a chosen sense is what the card asks about', async () => {
       },
     ],
   });
-  global.fetch = jest.fn((url) =>
+  global.fetch = vi.fn((url) =>
     String(url).includes('dictionaryapi') ? mockJson([twoSenses]) : mockJson([])
   );
 

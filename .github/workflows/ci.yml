@@ -21,9 +21,7 @@ jobs:
       - run: npm ci
 
       - name: Test
-        run: npm test -- --watchAll=false
-        env:
-          CI: true
+        run: npm test
 
       - name: Build
         run: npm run build
@@ -47,8 +45,8 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      # The preview build is what the suite serves: relative asset paths, so it
-      # runs from the root instead of the deploy subdirectory.
+      # The suite builds with VITE_BASE=/ and serves that from the root, rather
+      # than from the subdirectory the real deploy lives in.
       - name: Run browser checks
         run: npm run e2e
         env:

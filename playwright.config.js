@@ -1,11 +1,11 @@
-const { defineConfig, devices } = require('@playwright/test');
+import { defineConfig, devices } from '@playwright/test';
 
 /**
  * The browser checks that kept catching what unit tests could not — a search bar
  * that reflowed into two lines, a dropdown with the wrong semantics. Run against
  * the production build, so what is tested is what ships.
  */
-module.exports = defineConfig({
+export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
   fullyParallel: true,
@@ -23,9 +23,12 @@ module.exports = defineConfig({
   ],
   webServer: {
     // The normal build hardcodes the deploy subdirectory into every asset path,
-    // so serving it at the root gives a blank page. The preview build uses
-    // relative paths and can be served from anywhere.
-    command: 'npm run build:preview && npx --yes http-server build -p 4173 -s --silent',
+    // so serving it at the root gives a blank page. VITE_BASE=/ builds the same
+    // code to be served from the root instead.
+    command: 'npm run build && npm run preview -- --port 4173 --strictPort',
+    // VITE_BASE has to reach both halves of that command, which an inline
+    // assignment before the first one would not do.
+    env: { VITE_BASE: '/' },
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
     timeout: 180000,

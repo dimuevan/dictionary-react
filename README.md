@@ -54,22 +54,25 @@ Full instructions, including the production build and its one trap, are in
 [RUN.md](RUN.md).
 
 ```bash
-npm test           # 53 unit tests
+npm test           # 57 unit tests
 npm run e2e        # 14 browser checks, desktop and phone
 npm run build      # production build for the hosting subdirectory
+npm run check:apis # the shapes the three services are expected to return
 ```
 
 Both suites run on every push — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+A third workflow checks the real services against the shapes this app expects,
+once a day, because every test here mocks the network.
 
 ---
 
 ## How it is put together
 
-No router, no state library, no UI framework: React and the platform.
+No router, no state library, no UI framework: React, Vite and the platform.
 
 ```
 src/
-├── App.js              # layout and what the screen shows
+├── App.jsx             # layout and what the screen shows
 ├── useDictionary.js    # the lookup: sources, deadlines, cache, failure kinds
 ├── wiktionary.js       # second source, reshaped to match the first
 ├── datamuse.js         # spelling suggestions, completions, frequency, rhymes
@@ -79,6 +82,8 @@ src/
 ├── studySchedule.js    # Leitner boxes
 ├── backup.js           # JSON export and merge-on-restore
 ├── urlTerm.js          # the word and language in the address bar
+├── usePreferences.js   # theme and typeface
+├── useWordRequest.js   # the word on screen, and the browser history
 └── …                   # components and their stylesheets
 ```
 
