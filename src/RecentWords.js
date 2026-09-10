@@ -6,6 +6,8 @@ import { buildBackup, restoreBackup } from './backup';
 import { clearCachedWords, readCachedPayload, readRecentWords } from './wordCache';
 
 import StudyCards from './StudyCards';
+import StudyProgress from './StudyProgress';
+import { boxCounts } from './studySchedule';
 import { DEFAULT_LANGUAGE } from './languages';
 
 const firstDefinition = (payload) => {
@@ -162,6 +164,8 @@ const RecentWords = ({ onSelect }) => {
           ))}
         </ul>
       )}
+
+      {tab === 'saved' && saved.length > 0 && <StudyProgress counts={boxCounts(saved)} />}
 
       <div className="recent-actions">
         {tab === 'saved' && saved.length > 0 && (

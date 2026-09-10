@@ -41,6 +41,25 @@ export const toggleFavourite = (term, lang = DEFAULT_LANGUAGE) => {
   return Boolean(all[key]);
 };
 
+/**
+ * Which sense to study. The first definition is a poor default for a word like
+ * "set", so the reader can name the one they actually mean; saving the word if
+ * it was not saved already.
+ */
+export const setStudySense = (term, lang, definition) => {
+  const all = readAll();
+  const key = keyFor(term, lang);
+  const existing = all[key] || { term, lang, savedAt: Date.now() };
+
+  all[key] = { ...existing, definition };
+  persist(all);
+};
+
+export const studySenseOf = (term, lang = DEFAULT_LANGUAGE) => {
+  const entry = readAll()[keyFor(term, lang)];
+  return entry && entry.definition ? entry.definition : '';
+};
+
 export const removeFavourite = (term, lang = DEFAULT_LANGUAGE) => {
   const all = readAll();
   delete all[keyFor(term, lang)];

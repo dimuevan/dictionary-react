@@ -1,0 +1,98 @@
+/* Sequential ramp, one hue, stepped separately for each surface. Every step is
+   at least 3:1 against its own background — verified, not eyeballed. */
+body.light,
+body:not(.dark) {
+  --box-1: #9c6bd2;
+  --box-2: #8b55c5;
+  --box-3: #7a41b0;
+  --box-4: #6a2f9c;
+  --box-5: #571f80;
+}
+
+body.dark {
+  --box-1: #9670bd;
+  --box-2: #a77fd0;
+  --box-3: #b48ede;
+  --box-4: #c39fe9;
+  --box-5: #d2b1f5;
+}
+
+.progress {
+  margin: 4px 0 0;
+  width: 100%;
+  max-width: 420px;
+}
+
+.progress-caption {
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-color);
+  opacity: 0.5;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.progress-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.progress-row {
+  display: grid;
+  grid-template-columns: 62px 1fr 22px;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: var(--text-color);
+  opacity: 0.45;
+  text-align: right;
+}
+
+.progress-track {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  /* A faint trough, so an empty box still reads as a box. Neutral rather than
+     tinted, so it never competes with the ramp. */
+  background: rgb(128 128 128 / 14%);
+}
+
+.progress-bar {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.box-1 { background: var(--box-1); }
+.box-2 { background: var(--box-2); }
+.box-3 { background: var(--box-3); }
+.box-4 { background: var(--box-4); }
+.box-5 { background: var(--box-5); }
+
+.progress-count {
+  font-size: 13px;
+  color: var(--text-color);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.progress-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-color);
+  opacity: 0.4;
+  text-align: center;
+}

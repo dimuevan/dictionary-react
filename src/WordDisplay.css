@@ -500,3 +500,43 @@ ul li::marker {
   @media (max-width: 768px) {
     .show-all { margin-left: 27px; }
   }
+
+  /* One per definition, quiet until hovered — the definition is what matters. */
+  .sense-button {
+    display: block;
+    font-family: inherit;
+    font-size: 12.5px;
+    letter-spacing: 0.04em;
+    color: var(--text-color);
+    opacity: 0;
+    background: none;
+    border: none;
+    padding: 4px 0 0;
+    cursor: pointer;
+    transition: opacity 0.2s, color 0.2s;
+  }
+
+  .meanings--definition:hover .sense-button,
+  .sense-button:focus-visible,
+  .sense-button.is-chosen {
+    opacity: 0.6;
+  }
+
+  .sense-button:hover { opacity: 1; color: #a543e8; }
+
+  .sense-button.is-chosen { color: #a543e8; opacity: 1; }
+
+  .sense-button:focus-visible {
+    outline: 2px solid #a543e8;
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  /* Touch has no hover, so the control is always legible there. */
+  @media (hover: none) {
+    .sense-button { opacity: 0.55; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sense-button { transition: none; }
+  }

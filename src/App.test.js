@@ -4,7 +4,7 @@ import App from './App';
 import React from 'react';
 import { resetPrimaryBreaker } from './useDictionary';
 import { wordOfTheDay } from './wordOfTheDay';
-import { dueEntries, recordAnswer, stateFor } from './studySchedule';
+import { boxCounts, dueEntries, recordAnswer, stateFor } from './studySchedule';
 import { readFavourites, toTsv } from './favourites';
 import { restoreBackup } from './backup';
 
@@ -34,6 +34,20 @@ const mockJson = (payload, { ok = true, status = 200 } = {}) =>
 /** Only the calls to the dictionary itself, ignoring the optional extras. */
 const dictionaryCalls = () =>
   global.fetch.mock.calls.filter(([url]) => String(url).includes('dictionaryapi.dev'));
+
+/**
+ * Which lookup sources were asked, in order. Naming them explicitly matters:
+ * the page also talks to Datamuse and to Wiktionary's parse API for the extras,
+ * and counting those as lookups made these assertions depend on timing.
+ */
+const lookupSources = () =>
+  global.fetch.mock.calls
+    .map(([url]) => String(url))
+    .filter(
+      (url) =>
+        url.includes('dictionaryapi.dev') || url.includes('/api/rest_v1/page/definition')
+    )
+    .map((url) => (url.includes('wiktionary.org') ? 'wiktionary' : 'primary'));
 
 const search = (word) => {
   fireEvent.change(screen.getByLabelText('Search for a word'), { target: { value: word } });
@@ -81,10 +95,7 @@ test('says a failed fetch is a connection problem, and offers a retry', async ()
     await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
   ).toBeInTheDocument();
   // One attempt at the primary, then straight to the Wiktionary fallback.
-  const hosts = global.fetch.mock.calls.map(([url]) =>
-    String(url).includes('wiktionary.org') ? 'wiktionary' : 'primary'
-  );
-  expect(hosts).toEqual(['primary', 'wiktionary']);
+  expect(lookupSources()).toEqual(['primary', 'wiktionary']);
   // The raw browser string never reaches the reader.
   expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Check the spelling/i)).not.toBeInTheDocument();
@@ -166,10 +177,7 @@ test('stops asking a primary that just failed, and goes straight to Wiktionary',
   await waitFor(() => expect(global.fetch).toHaveBeenCalled());
 
   // The second search skips the dead primary entirely.
-  const hosts = global.fetch.mock.calls.map(([url]) =>
-    String(url).includes('wiktionary.org') ? 'wiktionary' : 'primary'
-  );
-  expect(hosts).toEqual(['wiktionary']);
+  await waitFor(() => expect(lookupSources()).toEqual(['wiktionary']));
 });
 
 test('gives the primary another chance when the reader asks for one', async () => {
@@ -182,7 +190,7 @@ test('gives the primary another chance when the reader asks for one', async () =
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
   await screen.findByRole('heading', { name: 'keyboard' });
-  expect(String(global.fetch.mock.calls[0][0])).toContain('dictionaryapi.dev');
+  expect(lookupSources()[0]).toBe('primary');
 });
 
 test('gives up on a hanging request instead of waiting forever', async () => {
@@ -895,4 +903,88 @@ test('offers the entry as an image without failing where canvas is unavailable',
   expect(button).toBeInTheDocument();
   fireEvent.click(button); // jsdom has no 2d context; this must not throw
   await waitFor(() => expect(button).toBeInTheDocument());
+});
+
+// ------------------------------------------------------ fourth board of ideas
+
+test('a chosen sense is what the card asks about', async () => {
+  const twoSenses = entry({
+    meanings: [
+      {
+        partOfSpeech: 'noun',
+        definitions: [
+          { definition: 'The common first sense.' },
+          { definition: 'The one I actually mean.' },
+        ],
+        synonyms: [],
+        antonyms: [],
+      },
+    ],
+  });
+  global.fetch = jest.fn((url) =>
+    String(url).includes('dictionaryapi') ? mockJson([twoSenses]) : mockJson([])
+  );
+
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  const controls = screen.getAllByRole('button', { name: /Study this sense/ });
+  fireEvent.click(controls[1]); // the second definition
+
+  // Choosing a sense saves the word too, so there is something to study.
+  expect(screen.getByRole('button', { name: 'Remove from saved words' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Studying this sense' })).toBeInTheDocument();
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Study' }));
+
+  expect(screen.getByText('The one I actually mean.')).toBeInTheDocument();
+  expect(screen.queryByText('The common first sense.')).not.toBeInTheDocument();
+});
+
+test('counts the saved words by box', () => {
+  const words = [
+    { term: 'alpha', lang: 'en' },
+    { term: 'beta', lang: 'en' },
+    { term: 'gamma', lang: 'en' },
+  ];
+
+  // Untouched words sit in the first box.
+  expect(boxCounts(words)).toEqual([3, 0, 0, 0, 0]);
+
+  recordAnswer('alpha', 'en', true);
+  recordAnswer('beta', 'en', true);
+  recordAnswer('beta', 'en', true);
+  expect(boxCounts(words)).toEqual([1, 1, 1, 0, 0]);
+});
+
+test('shows the box distribution once words are saved', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  fireEvent.click(screen.getByRole('button', { name: 'Save this word' }));
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
+
+  expect(screen.getByText('1 word in rotation')).toBeInTheDocument();
+  expect(screen.getByText('new')).toBeInTheDocument();
+});
+
+test('preferences survive a reload, together', () => {
+  const { unmount } = render(<App />);
+
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Toggle dark mode' }));
+  fireEvent.change(screen.getByLabelText('Typeface'), { target: { value: 'sans' } });
+  expect(document.body.className).toBe('dark font-sans');
+  unmount();
+
+  render(<App />);
+  expect(document.body.className).toBe('dark font-sans');
 });

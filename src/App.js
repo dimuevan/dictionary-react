@@ -2,49 +2,17 @@ import './App.css'; // Your main CSS file
 
 import React, { useEffect, useState } from 'react';
 
-import { readRequestFromUrl, writeRequestToUrl } from './urlTerm';
-
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
 import RecentWords from './RecentWords';
 import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
-import useDictionary, { resetPrimaryBreaker } from './useDictionary';
-import { fetchSuggestions } from './datamuse';
-import { DEFAULT_LANGUAGE } from './languages';
+import useDictionary from './useDictionary';
+import usePreferences from './usePreferences';
+import useSuggestions from './useSuggestions';
+import useWordRequest from './useWordRequest';
 import { wordOfTheDay } from './wordOfTheDay';
-
-const THEME_KEY = 'dictionearch-theme';
-const FONT_KEY = 'dictionearch-font';
-const FONTS = ['serif', 'sans', 'mono'];
-
-const getInitialTheme = () => {
-  try {
-    const stored = window.localStorage.getItem(THEME_KEY);
-    if (stored === 'light' || stored === 'dark') {
-      return stored;
-    }
-  } catch (error) {
-    // localStorage can be unavailable (private mode, blocked cookies)
-  }
-
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-};
-
-/**
- * What the reader sees in place of the result. Only 'not-found' is about the
- * word they typed; the rest are our problem, and retrying can fix them.
- */
-const getInitialFont = () => {
-  try {
-    const stored = window.localStorage.getItem(FONT_KEY);
-    if (FONTS.includes(stored)) return stored;
-  } catch (error) {
-    // localStorage can be unavailable; the default face still applies
-  }
-  return 'serif';
-};
 
 const savedAgo = (timestamp) => {
   const minutes = Math.round((Date.now() - timestamp) / 60000);
@@ -58,6 +26,10 @@ const savedAgo = (timestamp) => {
   return `${days} day${days === 1 ? '' : 's'} ago`;
 };
 
+/**
+ * What the reader sees in place of the result. Only 'not-found' is about the
+ * word they typed; the rest are our problem, and retrying can fix them.
+ */
 const explain = (error, term) => {
   switch (error.kind) {
     case 'not-found':
@@ -86,83 +58,24 @@ const explain = (error, term) => {
   }
 };
 
+/** A notice above an entry that is not quite the fresh, primary answer. */
+const SourceNotice = ({ children, onRetry }) => (
+  <div className="cache-notice">
+    <p>{children}</p>
+    <button type="button" className="retry-button" onClick={onRetry}>
+      Try again
+    </button>
+  </div>
+);
+
 const App = () => {
-  const [theme, setTheme] = useState(getInitialTheme);
-  const [font, setFont] = useState(getInitialFont);
-  const [suggestions, setSuggestions] = useState([]);
-  const daily = wordOfTheDay();
-  // The address bar is the source of truth for which word is on screen.
-  const [request, setRequest] = useState(() => ({ ...readRequestFromUrl(), nonce: 0 }));
-  const [showErrorClass, setShowErrorClass] = useState(false);
-
+  const { theme, toggleTheme, font, setFont } = usePreferences();
+  const { request, search, changeLanguage, retry } = useWordRequest();
   const { status, data: wordData, error, cachedAt, source } = useDictionary(request);
+  const suggestions = useSuggestions(error, request);
 
-  const handleThemeToggle = () => {
-    setTheme((currentTheme) => (currentTheme === 'light' ? 'dark' : 'light'));
-  };
-
-  // A new nonce on every submit lets the same word be searched twice in a row.
-  const handleSearch = (query, lang) => {
-    setRequest((current) => {
-      const nextLang = lang || current.lang;
-      writeRequestToUrl(query.trim(), nextLang);
-      return { term: query, lang: nextLang, nonce: current.nonce + 1 };
-    });
-  };
-
-  // Changing language re-asks for the same word in the new dictionary.
-  const handleLanguageChange = (nextLang) => {
-    setRequest((current) => {
-      writeRequestToUrl(current.term.trim(), nextLang);
-      return { ...current, lang: nextLang, nonce: current.nonce + 1 };
-    });
-  };
-
-  // Retrying is the same request with a fresh nonce. An explicit retry is also
-  // the moment to give the primary dictionary another chance, cooldown or not.
-  const handleRetry = () => {
-    resetPrimaryBreaker();
-    setRequest((current) => ({ ...current, nonce: current.nonce + 1 }));
-  };
-
-  // Back and forward move between words instead of leaving the app.
-  useEffect(() => {
-    const handlePopState = () => {
-      setRequest((current) => ({ ...readRequestFromUrl(), nonce: current.nonce + 1 }));
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  // Effect to apply class to body element
-  useEffect(() => {
-    document.body.className = `${theme} font-${font}`;
-    try {
-      window.localStorage.setItem(THEME_KEY, theme);
-      window.localStorage.setItem(FONT_KEY, font);
-    } catch (storageError) {
-      // ignore write failures; both still apply for this session
-    }
-  }, [theme, font]);
-
-  // A misspelling should offer a way forward rather than a dead end.
-  useEffect(() => {
-    setSuggestions([]);
-    if (!error || error.kind !== 'not-found' || request.lang !== DEFAULT_LANGUAGE) {
-      return undefined;
-    }
-
-    let current = true;
-    const term = request.term.trim();
-    fetchSuggestions(term).then((words) => {
-      if (current) setSuggestions(words);
-    });
-
-    return () => {
-      current = false;
-    };
-  }, [error, request.term, request.lang, request.nonce]);
+  const [showErrorClass, setShowErrorClass] = useState(false);
+  const daily = wordOfTheDay();
 
   // Show the toast, then slide it away. Keyed on the nonce too, so two searches
   // that fail the same way still each get their own toast.
@@ -180,71 +93,59 @@ const App = () => {
 
   const term = request.term.trim();
   const explanation = error ? explain(error, term) : null;
-
-  // Determine the classnames dynamically
   const classNames = `error-message${showErrorClass ? " showError" : ""}`;
 
   return (
     <div className="app">
       <Header
-        onThemeToggle={handleThemeToggle}
+        onThemeToggle={toggleTheme}
         theme={theme}
         font={font}
         onFontChange={setFont}
         lang={request.lang}
-        onLanguageChange={handleLanguageChange}
+        onLanguageChange={changeLanguage}
       />
+
       <div className='searchWrapper'>
-        <Search onSearch={handleSearch} term={request.term} lang={request.lang} />
+        <Search onSearch={search} term={request.term} lang={request.lang} />
 
         {status === 'idle' && (
           <>
             <p className="placeholder-text">Enter a word to get started</p>
             <p className="daily">
               Word of the day:{' '}
-              <button type="button" className="daily-word" onClick={() => handleSearch(daily)}>
+              <button type="button" className="daily-word" onClick={() => search(daily)}>
                 {daily}
               </button>
             </p>
-            <RecentWords onSelect={handleSearch} />
+            <RecentWords onSelect={search} />
           </>
         )}
+
         {status === 'loading' && <ResultSkeleton />}
+
         {status === 'success' && (
           <ErrorBoundary resetKey={request.nonce}>
             {cachedAt && error && (
-              <div className="cache-notice">
-                <p>
-                  {error.message}, so this is the copy saved {savedAgo(cachedAt)}.
-                </p>
-                <button type="button" className="retry-button" onClick={handleRetry}>
-                  Try again
-                </button>
-              </div>
+              <SourceNotice onRetry={retry}>
+                {error.message}, so this is the copy saved {savedAgo(cachedAt)}.
+              </SourceNotice>
             )}
             {!cachedAt && source === 'wiktionary' && error && (
-              <div className="cache-notice">
-                <p>
-                  {error.message}, so this comes straight from Wiktionary — which
-                  carries no pronunciation audio.
-                </p>
-                <button type="button" className="retry-button" onClick={handleRetry}>
-                  Try again
-                </button>
-              </div>
+              <SourceNotice onRetry={retry}>
+                {error.message}, so this comes straight from Wiktionary — which carries
+                no pronunciation audio.
+              </SourceNotice>
             )}
-            <WordDisplay
-              wordData={wordData}
-              onSelectWord={handleSearch}
-              lang={request.lang}
-            />
+            <WordDisplay wordData={wordData} onSelectWord={search} lang={request.lang} />
           </ErrorBoundary>
         )}
+
         {status === 'error' && (
           <div className="search-failed">
             <p className="placeholder-text">{explanation.text}</p>
             {explanation.canRetry && (
-              <button type="button" className="retry-button" onClick={handleRetry}>
+              <button type="button" className="retry-button" onClick={retry}>
                 Try again
               </button>
             )}
@@ -254,7 +155,7 @@ const App = () => {
                 <ul className="suggestions-list">
                   {suggestions.map((word) => (
                     <li key={word}>
-                      <button type="button" className="chip" onClick={() => handleSearch(word)}>
+                      <button type="button" className="chip" onClick={() => search(word)}>
                         {word}
                       </button>
                     </li>

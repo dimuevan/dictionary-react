@@ -72,3 +72,17 @@ export const clearSchedule = () => {
 };
 
 export { SCHEDULE_KEY, INTERVAL_DAYS };
+
+/** How many of these words sit in each box, lowest first. */
+export const boxCounts = (entries) => {
+  const all = readAll();
+  const counts = INTERVAL_DAYS.map(() => 0);
+
+  entries.forEach((entry) => {
+    const state = all[keyFor(entry.term, entry.lang)];
+    const box = state && state.box ? state.box : 1;
+    counts[Math.min(Math.max(box, 1), counts.length) - 1] += 1;
+  });
+
+  return counts;
+};

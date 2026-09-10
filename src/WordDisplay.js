@@ -6,7 +6,7 @@ import { DEFAULT_LANGUAGE } from './languages';
 import { fetchEtymology } from './etymology';
 import { fetchFrequency, fetchRelatedWords } from './datamuse';
 import { downloadWordCard } from './wordCardImage';
-import { isFavourite, toggleFavourite } from './favourites';
+import { isFavourite, setStudySense, studySenseOf, toggleFavourite } from './favourites';
 import { shareUrlFor } from './urlTerm';
 
 /**
@@ -127,9 +127,11 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
 
   const headword = wordData.data[0].word;
   const [starred, setStarred] = useState(() => isFavourite(headword, lang));
+  const [studySense, setStudySenseState] = useState(() => studySenseOf(headword, lang));
 
   useEffect(() => {
     setStarred(isFavourite(headword, lang));
+    setStudySenseState(studySenseOf(headword, lang));
     setCopied(false);
     setSelected(0);
   }, [headword, lang]);
@@ -174,6 +176,12 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
 
   const handleStar = () => {
     setStarred(toggleFavourite(headword, lang));
+  };
+
+  const chooseSense = (definition) => {
+    setStudySense(headword, lang, definition);
+    setStudySenseState(definition);
+    setStarred(true);
   };
 
   const handleShareImage = () => {
@@ -324,6 +332,14 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
                 {def.example && (
                   <span className='meanings--example'>"{def.example}"</span>
                 )}
+                <button
+                  type="button"
+                  className={`sense-button ${studySense === def.definition ? 'is-chosen' : ''}`}
+                  onClick={() => chooseSense(def.definition)}
+                  aria-pressed={studySense === def.definition}
+                >
+                  {studySense === def.definition ? 'Studying this sense' : 'Study this sense'}
+                </button>
               </li>
             ))}
           </ul>

@@ -1,0 +1,23 @@
+name: API contract
+
+# Every other suite mocks the network, so a provider changing its response would
+# reach a reader before it reached a build. This runs against the real services,
+# daily rather than on every push, to stay a good citizen of three free APIs.
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check the shapes the app depends on
+        run: npm run check:apis

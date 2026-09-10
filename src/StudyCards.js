@@ -42,7 +42,8 @@ const StudyCards = ({ entries, onClose, onSelect }) => {
       entries
         .map((entry) => ({
           ...entry,
-          definition: firstDefinition(readCachedPayload(entry.term, entry.lang)),
+          // The sense the reader picked wins over whichever came first.
+          definition: entry.definition || firstDefinition(readCachedPayload(entry.term, entry.lang)),
         }))
         .filter((card) => card.definition),
     [entries]

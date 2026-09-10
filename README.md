@@ -1,72 +1,103 @@
-# Getting Started with Create React App
+# Dictionearch
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An English dictionary in the browser. Type a word, get its definitions, examples,
+synonyms, pronunciation and origin — and keep the ones worth keeping.
 
-## Available Scripts
+Built by [Evan Dimu](https://iamevandimu.com) as a first React project, then taken
+rather further than that.
 
-In the project directory, you can run:
+**Live:** <http://dev.iamevandimu.com/challenges/react/dictionearch/>
 
-### `npm start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## What it does
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+**Looks words up.** Definitions grouped by part of speech, examples, synonyms and
+antonyms — each one clickable, so an entry is a place to wander rather than a dead
+end. Long entries fold to three senses with the rest a click away.
 
-### `npm test`
+**Speaks them.** Where the dictionary carries more than one recording, a chip per
+accent (US, UK, AU) selects and plays it, and the phonetic spelling follows.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+**Keeps working when the dictionary does not.** Three layers, in order:
 
-### `npm run build`
+1. `api.dictionaryapi.dev`, with a 3.5s deadline
+2. Wiktionary's own REST API, if the first cannot be reached
+3. a saved copy from `localStorage`, if neither answers
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+A source that fails is set aside for a minute, so the next search does not pay its
+timeout again. A word already seen opens from storage immediately and refreshes
+behind the scenes.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+**Remembers.** Every lookup is saved; the empty screen offers the recent ones.
+Star the ones you mean to keep, study them as flashcards on a Leitner schedule,
+and export to CSV, to Anki, or as a JSON backup you can restore on another machine.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+**Reads six languages.** English, Spanish, French, German, Italian and Portuguese,
+each from its own dictionary and its own Wiktionary.
 
-### `npm run eject`
+**Behaves like a tool.** The word lives in the address bar, so definitions are
+shareable and the back button works. `/` jumps to the search box, `Escape` clears
+it, arrow keys walk the suggestions. Light and dark, three typefaces, and a
+service worker so it opens offline.
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Running it
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+npm install
+npm start          # http://localhost:3000
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Full instructions, including the production build and its one trap, are in
+[RUN.md](RUN.md).
 
-## Learn More
+```bash
+npm test           # 53 unit tests
+npm run e2e        # 14 browser checks, desktop and phone
+npm run build      # production build for the hosting subdirectory
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Both suites run on every push — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## How it is put together
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+No router, no state library, no UI framework: React and the platform.
 
-### Analyzing the Bundle Size
+```
+src/
+├── App.js              # layout and what the screen shows
+├── useDictionary.js    # the lookup: sources, deadlines, cache, failure kinds
+├── wiktionary.js       # second source, reshaped to match the first
+├── datamuse.js         # spelling suggestions, completions, frequency, rhymes
+├── etymology.js        # the Origin section, read out of a Wiktionary page
+├── wordCache.js        # saved entries, which double as the history
+├── favourites.js       # starred words, CSV and Anki export
+├── studySchedule.js    # Leitner boxes
+├── backup.js           # JSON export and merge-on-restore
+├── urlTerm.js          # the word and language in the address bar
+└── …                   # components and their stylesheets
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Two decisions worth knowing:
 
-### Making a Progressive Web App
+**Failures carry a kind.** A word that does not exist, a service that will not
+answer, and a payload that cannot be read are three different problems, and the
+screen says which. A browser reports all of them as `Failed to fetch`; the reader
+never sees that string.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+**Nothing optional may break the essential.** Frequency, rhymes, etymology and
+suggestions each fail to nothing. If Datamuse is down you get a definition with
+fewer extras, not an error.
 
-### Advanced Configuration
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## Credits
 
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
-# dictionary-react
-# dictionary-react
+Definitions from [Free Dictionary API](https://dictionaryapi.dev) and
+[Wiktionary](https://en.wiktionary.org). Related words and frequency from
+[Datamuse](https://www.datamuse.com/api/). Design based on the
+[Frontend Mentor dictionary web app challenge](https://www.frontendmentor.io/challenges/dictionary-web-app-h5wwnH6IV).
