@@ -40,3 +40,23 @@ export const writeCachedWord = (term, payload) => {
     // Not being able to remember a word is never worth failing a lookup over.
   }
 };
+
+/**
+ * The words already saved, newest first. The cache doubles as the search
+ * history: everything needed is already on disk, only nothing showed it.
+ */
+export const readRecentWords = (limit = 10) => {
+  const all = readAll();
+  return Object.keys(all)
+    .filter((term) => all[term] && all[term].payload)
+    .sort((a, b) => (all[b].savedAt || 0) - (all[a].savedAt || 0))
+    .slice(0, limit);
+};
+
+export const clearCachedWords = () => {
+  try {
+    window.localStorage.removeItem(CACHE_KEY);
+  } catch (error) {
+    // nothing to do; the history simply stays as it is
+  }
+};

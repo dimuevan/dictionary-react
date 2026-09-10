@@ -2,8 +2,14 @@ import './Search.css'; // Make sure to create a corresponding CSS file for styli
 
 import React, { useEffect, useRef, useState } from 'react';
 
-const Search = ({ onSearch }) => {
-  const [input, setInput] = useState('');
+const Search = ({ onSearch, term = '' }) => {
+  const [input, setInput] = useState(term);
+
+  // The word can also be chosen away from this box — from the address bar, a
+  // recent chip, or a synonym — and the box should show what is on screen.
+  useEffect(() => {
+    setInput(term);
+  }, [term]);
 
   const handleInputChange = (event) => {
     setInput(event.target.value);
@@ -33,7 +39,7 @@ const Search = ({ onSearch }) => {
         ref={inputRef}
         type="text"
         className="search-input"
-        placeholder=""
+        placeholder="Search a word, e.g. keyboard"
         value={input}
         onChange={handleInputChange}
         aria-label="Search for a word"

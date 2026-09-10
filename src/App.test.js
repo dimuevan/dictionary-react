@@ -36,6 +36,7 @@ beforeEach(() => {
   global.fetch = jest.fn(() => mockJson([entry()]));
   window.localStorage.clear();
   resetPrimaryBreaker(); // module-level state must not leak between tests
+  window.history.replaceState({}, '', '/'); // nor must the address bar
 });
 
 afterEach(() => {
@@ -351,4 +352,89 @@ test('ignores a Wiktionary payload with no usable English definitions', async ()
   expect(
     await screen.findByText(/service may be down.*not your spelling/i, {}, { timeout: 4000 })
   ).toBeInTheDocument();
+});
+
+
+test('puts the word in the address bar so it can be shared and reopened', async () => {
+  render(<App />);
+  search('keyboard');
+
+  await screen.findByRole('heading', { name: 'keyboard' });
+  expect(window.location.search).toBe('?w=keyboard');
+});
+
+test('opens the word the address bar arrives with', async () => {
+  window.history.replaceState({}, '', '/?w=keyboard');
+  render(<App />);
+
+  expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
+  expect(screen.getByLabelText('Search for a word')).toHaveValue('keyboard');
+});
+
+test('follows the browser back button between words', async () => {
+  render(<App />);
+
+  search('keyboard');
+  await waitFor(() => expect(window.location.search).toBe('?w=keyboard'));
+  search('cat');
+  await waitFor(() => expect(window.location.search).toBe('?w=cat'));
+
+  // jsdom updates the URL but does not fire popstate for us.
+  window.history.replaceState({}, '', '/?w=keyboard');
+  fireEvent.popState(window);
+
+  await waitFor(() => expect(screen.getByLabelText('Search for a word')).toHaveValue('keyboard'));
+});
+
+test('offers recently looked-up words on the empty screen, and can forget them', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+
+  const chip = await screen.findByRole('button', { name: 'keyboard' });
+  fireEvent.click(chip);
+  expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
+  expect(window.location.search).toBe('?w=keyboard');
+});
+
+test('shows no recent words before anything has been looked up', () => {
+  render(<App />);
+  expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+});
+
+test('clearing the recent words empties the list', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+
+  await screen.findByText('Recent');
+  fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+  expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+});
+
+test('a synonym starts a new lookup', async () => {
+  global.fetch = jest.fn((url) =>
+    String(url).includes('electronic')
+      ? mockJson([entry({ word: 'electronic keyboard' })])
+      : mockJson([entry()])
+  );
+
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'electronic keyboard' }));
+
+  expect(
+    await screen.findByRole('heading', { name: 'electronic keyboard' })
+  ).toBeInTheDocument();
+  expect(window.location.search).toBe('?w=electronic+keyboard');
 });

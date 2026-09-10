@@ -1,0 +1,85 @@
+.recent {
+  margin-top: 34px;
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.recent-label {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color);
+  opacity: 0.4;
+}
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.recent-list li {
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+}
+
+.chip {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text-color);
+  background: var(--background-search);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 7px 16px 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.chip:hover {
+  color: #a543e8;
+  border-color: rgb(165 67 232 / 45%);
+}
+
+.chip:focus-visible {
+  outline: 2px solid #a543e8;
+  outline-offset: 2px;
+}
+
+.recent-clear {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-color);
+  opacity: 0.4;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.recent-clear:hover {
+  opacity: 0.8;
+}
+
+.recent-clear:focus-visible {
+  outline: 2px solid #a543e8;
+  outline-offset: 2px;
+  opacity: 0.8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip {
+    transition: none;
+  }
+}
