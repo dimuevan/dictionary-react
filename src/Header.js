@@ -4,7 +4,7 @@ import { ReactComponent as MoonIcon } from './images/icons/moon.svg';
 import React from 'react';
 import { ReactComponent as SunIcon } from './images/icons/sun.svg';
 
-const Header = ({ onThemeToggle, theme }) => {
+const Header = ({ onThemeToggle, theme, font, onFontChange }) => {
   return (
     <header className="header">
       <a href={`${process.env.PUBLIC_URL}/`} className="logo--link">
@@ -14,6 +14,20 @@ const Header = ({ onThemeToggle, theme }) => {
         </div>
       </a>
 
+
+      <div className="header-controls">
+        <label className="font-picker">
+          <span className="visually-hidden">Typeface</span>
+          <select
+            className="font-select"
+            value={font}
+            onChange={(event) => onFontChange(event.target.value)}
+          >
+            <option value="serif">Serif</option>
+            <option value="sans">Sans Serif</option>
+            <option value="mono">Mono</option>
+          </select>
+        </label>
 
       <div className="theme-toggle-wrapper">
         <div className="theme-toggle">
@@ -33,6 +47,7 @@ const Header = ({ onThemeToggle, theme }) => {
         <div className="moon-icon">
         {theme === 'dark' ? <SunIcon width="30" height="30" /> : <MoonIcon width="24" height="24" />}
         </div>
+      </div>
       </div>
     </header>
   );

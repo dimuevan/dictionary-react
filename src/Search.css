@@ -18,7 +18,7 @@
     font-weight: 900;
     outline: none;
     background: transparent;
-    font-family: "Lora", serif;
+    font-family: inherit;
     color: var(--text-color-search);
     border: none;
     transition: background-color 0.3s, color 0.3s; /* Smooth transition for theme change */

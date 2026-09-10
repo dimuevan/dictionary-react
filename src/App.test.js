@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import App from './App';
 import React from 'react';
 import { resetPrimaryBreaker } from './useDictionary';
+import { wordOfTheDay } from './wordOfTheDay';
 
 /**
  * Each test here locks down a bug that shipped at some point: they are the
@@ -329,8 +330,10 @@ test('does not consult Wiktionary when the word simply does not exist', async ()
   search('zzzzqqq');
 
   await screen.findByText(/No results for/);
-  expect(global.fetch).toHaveBeenCalledTimes(1);
-  expect(global.fetch.mock.calls.every(([url]) => !String(url).includes('wiktionary'))).toBe(true);
+  // The dictionary is asked once; only the spelling-suggestion service follows.
+  const hosts = global.fetch.mock.calls.map(([url]) => new URL(String(url)).hostname);
+  expect(hosts).not.toContain('en.wiktionary.org');
+  expect(hosts.filter((host) => host === 'api.dictionaryapi.dev')).toHaveLength(1);
 });
 
 test('reports the failure when both sources are away and nothing is saved', async () => {
@@ -437,4 +440,120 @@ test('a synonym starts a new lookup', async () => {
     await screen.findByRole('heading', { name: 'electronic keyboard' })
   ).toBeInTheDocument();
   expect(window.location.search).toBe('?w=electronic+keyboard');
+});
+
+
+test('suggests words spelled like the one that was not found', async () => {
+  global.fetch = jest.fn((url) => {
+    if (String(url).includes('datamuse.com')) {
+      return mockJson([{ word: 'keyboard' }, { word: 'keybox' }, { word: 'zzzzqqq' }]);
+    }
+    return mockJson({}, { ok: false, status: 404 });
+  });
+
+  render(<App />);
+  search('zzzzqqq');
+
+  await screen.findByText('Did you mean');
+  // The word that failed is not offered back as a suggestion.
+  expect(screen.queryByRole('button', { name: 'zzzzqqq' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'keyboard' }));
+  expect(window.location.search).toBe('?w=keyboard');
+});
+
+test('a suggestion service that is down costs the reader nothing', async () => {
+  global.fetch = jest.fn((url) =>
+    String(url).includes('datamuse.com')
+      ? Promise.reject(new TypeError('Failed to fetch'))
+      : mockJson({}, { ok: false, status: 404 })
+  );
+
+  render(<App />);
+  search('zzzzqqq');
+
+  expect(await screen.findByText(/No results for/)).toBeInTheDocument();
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+  expect(screen.queryByText('Did you mean')).not.toBeInTheDocument();
+});
+
+test('offers one button per recording when the word has several', async () => {
+  global.fetch = jest.fn(() =>
+    mockJson([
+      entry({
+        phonetics: [
+          { text: '/ˈkiːbɔːd/', audio: 'https://example.com/keyboard-uk.mp3' },
+          { text: '/ˈkiːbɔɹd/', audio: 'https://example.com/keyboard-us.mp3' },
+          { text: '', audio: 'https://example.com/keyboard-us.mp3' }, // duplicate
+        ],
+      }),
+    ])
+  );
+
+  render(<App />);
+  search('keyboard');
+
+  await screen.findByRole('heading', { name: 'keyboard' });
+  expect(screen.getByRole('button', { name: 'UK' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'US' })).toBeInTheDocument();
+  expect(screen.getAllByRole('button', { name: /^(UK|US|AU|CA)$/ })).toHaveLength(2);
+
+  // The first is selected, and choosing the other moves the phonetic text with it.
+  expect(screen.getByRole('button', { name: 'UK' })).toHaveAttribute('aria-pressed', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'US' }));
+  expect(screen.getByRole('button', { name: 'US' })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByText('/ˈkiːbɔɹd/')).toBeInTheDocument();
+});
+
+test('shows no pronunciation chips when there is only one recording', async () => {
+  render(<App />);
+  search('keyboard');
+
+  await screen.findByRole('heading', { name: 'keyboard' });
+  expect(screen.queryByRole('group', { name: 'Pronunciations' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Play pronunciation' })).toBeInTheDocument();
+});
+
+test('remembers the chosen typeface', async () => {
+  const { unmount } = render(<App />);
+
+  fireEvent.change(screen.getByLabelText('Typeface'), { target: { value: 'mono' } });
+  expect(document.body.className).toContain('font-mono');
+  unmount();
+
+  render(<App />);
+  expect(screen.getByLabelText('Typeface')).toHaveValue('mono');
+  expect(document.body.className).toContain('font-mono');
+});
+
+test('/ focuses the search box and Escape empties it', async () => {
+  render(<App />);
+  const input = screen.getByLabelText('Search for a word');
+
+  input.blur();
+  fireEvent.keyDown(window, { key: '/' });
+  expect(input).toHaveFocus();
+
+  fireEvent.change(input, { target: { value: 'keyboard' } });
+  fireEvent.keyDown(window, { key: 'Escape' });
+  expect(input).toHaveValue('');
+});
+
+test('offers a word of the day that opens like any other search', async () => {
+  render(<App />);
+
+  const daily = wordOfTheDay();
+  const button = screen.getByRole('button', { name: daily });
+  fireEvent.click(button);
+
+  await waitFor(() => expect(window.location.search).toBe(`?w=${daily}`));
+});
+
+test('the word of the day is stable within a day and changes across days', () => {
+  const monday = new Date('2026-09-07T09:00:00Z');
+  const mondayNight = new Date('2026-09-07T23:00:00Z');
+  const tuesday = new Date('2026-09-08T09:00:00Z');
+
+  expect(wordOfTheDay(monday)).toBe(wordOfTheDay(mondayNight));
+  expect(wordOfTheDay(monday)).not.toBe(wordOfTheDay(tuesday));
 });

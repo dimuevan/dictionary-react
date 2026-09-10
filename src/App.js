@@ -11,8 +11,12 @@ import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
 import useDictionary, { resetPrimaryBreaker } from './useDictionary';
+import { fetchSuggestions } from './suggestions';
+import { wordOfTheDay } from './wordOfTheDay';
 
 const THEME_KEY = 'dictionearch-theme';
+const FONT_KEY = 'dictionearch-font';
+const FONTS = ['serif', 'sans', 'mono'];
 
 const getInitialTheme = () => {
   try {
@@ -31,6 +35,16 @@ const getInitialTheme = () => {
  * What the reader sees in place of the result. Only 'not-found' is about the
  * word they typed; the rest are our problem, and retrying can fix them.
  */
+const getInitialFont = () => {
+  try {
+    const stored = window.localStorage.getItem(FONT_KEY);
+    if (FONTS.includes(stored)) return stored;
+  } catch (error) {
+    // localStorage can be unavailable; the default face still applies
+  }
+  return 'serif';
+};
+
 const savedAgo = (timestamp) => {
   const minutes = Math.round((Date.now() - timestamp) / 60000);
   if (minutes < 1) return 'a moment ago';
@@ -73,6 +87,9 @@ const explain = (error, term) => {
 
 const App = () => {
   const [theme, setTheme] = useState(getInitialTheme);
+  const [font, setFont] = useState(getInitialFont);
+  const [suggestions, setSuggestions] = useState([]);
+  const daily = wordOfTheDay();
   // The address bar is the source of truth for which word is on screen.
   const [request, setRequest] = useState(() => ({ term: readTermFromUrl(), nonce: 0 }));
   const [showErrorClass, setShowErrorClass] = useState(false);
@@ -108,13 +125,30 @@ const App = () => {
 
   // Effect to apply class to body element
   useEffect(() => {
-    document.body.className = theme;
+    document.body.className = `${theme} font-${font}`;
     try {
       window.localStorage.setItem(THEME_KEY, theme);
+      window.localStorage.setItem(FONT_KEY, font);
     } catch (storageError) {
-      // ignore write failures; the theme still applies for this session
+      // ignore write failures; both still apply for this session
     }
-  }, [theme]);
+  }, [theme, font]);
+
+  // A misspelling should offer a way forward rather than a dead end.
+  useEffect(() => {
+    setSuggestions([]);
+    if (!error || error.kind !== 'not-found') return undefined;
+
+    let current = true;
+    const term = request.term.trim();
+    fetchSuggestions(term).then((words) => {
+      if (current) setSuggestions(words);
+    });
+
+    return () => {
+      current = false;
+    };
+  }, [error, request.term, request.nonce]);
 
   // Show the toast, then slide it away. Keyed on the nonce too, so two searches
   // that fail the same way still each get their own toast.
@@ -138,13 +172,24 @@ const App = () => {
 
   return (
     <div className="app">
-      <Header onThemeToggle={handleThemeToggle} theme={theme} />
+      <Header
+        onThemeToggle={handleThemeToggle}
+        theme={theme}
+        font={font}
+        onFontChange={setFont}
+      />
       <div className='searchWrapper'>
         <Search onSearch={handleSearch} term={request.term} />
 
         {status === 'idle' && (
           <>
             <p className="placeholder-text">Enter a word to get started</p>
+            <p className="daily">
+              Word of the day:{' '}
+              <button type="button" className="daily-word" onClick={() => handleSearch(daily)}>
+                {daily}
+              </button>
+            </p>
             <RecentWords onSelect={handleSearch} />
           </>
         )}
@@ -182,6 +227,20 @@ const App = () => {
               <button type="button" className="retry-button" onClick={handleRetry}>
                 Try again
               </button>
+            )}
+            {suggestions.length > 0 && (
+              <nav className="suggestions" aria-label="Did you mean">
+                <p className="suggestions-label">Did you mean</p>
+                <ul className="suggestions-list">
+                  {suggestions.map((word) => (
+                    <li key={word}>
+                      <button type="button" className="chip" onClick={() => handleSearch(word)}>
+                        {word}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
             )}
           </div>
         )}

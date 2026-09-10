@@ -366,3 +366,42 @@ ul li::marker {
     outline-offset: 3px;
     border-radius: 3px;
   }
+
+  /* One chip per available recording, shown only when there is a choice. */
+  .accents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .accent {
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    color: var(--text-color);
+    opacity: 0.55;
+    background: none;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    padding: 3px 11px 4px;
+    cursor: pointer;
+    transition: opacity 0.2s, color 0.2s;
+  }
+
+  .accent:hover { opacity: 1; }
+
+  .accent.is-selected {
+    color: #a543e8;
+    opacity: 1;
+  }
+
+  .accent:focus-visible {
+    outline: 2px solid #a543e8;
+    outline-offset: 2px;
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .accent { transition: none; }
+  }

@@ -26,6 +26,31 @@ const Search = ({ onSearch, term = '' }) => {
     }
   }, []); // Empty dependency array means this effect runs once after initial render
 
+  // "/" jumps to the box and Escape empties it, the way a search tool behaves.
+  // Neither fires while the reader is typing somewhere else.
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const active = document.activeElement;
+      const typingElsewhere =
+        active && active !== inputRef.current &&
+        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+
+      if (event.key === '/' && !typingElsewhere && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        inputRef.current?.focus();
+        return;
+      }
+
+      if (event.key === 'Escape' && active === inputRef.current) {
+        setInput('');
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent the default form submit action
     if (input.trim()) { // Check if the input is not just whitespace

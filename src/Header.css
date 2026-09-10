@@ -123,3 +123,62 @@
       display: block;
     }
   }
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.font-picker {
+  display: flex;
+  align-items: center;
+}
+
+.font-select {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-color);
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 4px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.font-select:hover {
+  color: #a543e8;
+}
+
+.font-select:focus-visible {
+  outline: 2px solid #a543e8;
+  outline-offset: 2px;
+}
+
+/* The native menu paints on the OS surface, which ignores our theme. */
+.font-select option {
+  color: #000;
+  background: #fff;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .font-select { transition: none; }
+}
+
+@media (max-width: 480px) {
+  .header-controls { gap: 10px; }
+  .font-select { font-size: 14px; }
+}
