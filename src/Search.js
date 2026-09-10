@@ -119,9 +119,9 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
             <path d="M18.4429 18.9772L22.4762 23" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
+      {/* A plain list of buttons, not a listbox: a listbox's children must be
+          options, and buttons are already reachable and announced correctly. */}
       {completions.length > 0 && (
-        {/* A plain list of buttons, not a listbox: a listbox's children must be
-            options, and buttons are already reachable and announced correctly. */}
         <ul className="completions" aria-label="Suggestions">
           {completions.map((word) => (
             <li key={word}>
