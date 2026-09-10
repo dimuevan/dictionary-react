@@ -1,6 +1,7 @@
 import './StudyCards.css';
 
 import React, { useMemo, useState } from 'react';
+import { dueEntries, nextDueAt, recordAnswer, stateFor } from './studySchedule';
 
 import { readCachedPayload } from './wordCache';
 
@@ -20,29 +21,39 @@ const shuffle = (items) => {
   return copy;
 };
 
+const whenDue = (timestamp) => {
+  const days = Math.round((timestamp - Date.now()) / 86400000);
+  if (days <= 0) return 'later today';
+  if (days === 1) return 'tomorrow';
+  return `in ${days} days`;
+};
+
 /**
  * The definition first, the word second. Every card is built from an entry
  * already in the cache, so studying works with no network at all — and a saved
  * word with nothing cached is simply left out rather than shown blank.
+ *
+ * Which cards come up is decided by the Leitner boxes: only what is due, hardest
+ * first. Answering is what moves a word along, so the buttons are the point.
  */
 const StudyCards = ({ entries, onClose, onSelect }) => {
-  const cards = useMemo(
+  const studiable = useMemo(
     () =>
-      shuffle(
-        entries
-          .map((entry) => ({
-            ...entry,
-            definition: firstDefinition(readCachedPayload(entry.term, entry.lang)),
-          }))
-          .filter((card) => card.definition)
-      ),
+      entries
+        .map((entry) => ({
+          ...entry,
+          definition: firstDefinition(readCachedPayload(entry.term, entry.lang)),
+        }))
+        .filter((card) => card.definition),
     [entries]
   );
 
+  const [queue, setQueue] = useState(() => shuffle(dueEntries(studiable)));
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [answered, setAnswered] = useState(0);
 
-  if (!cards.length) {
+  if (!studiable.length) {
     return (
       <div className="study">
         <p className="study-empty">
@@ -55,41 +66,84 @@ const StudyCards = ({ entries, onClose, onSelect }) => {
     );
   }
 
-  const card = cards[index];
+  if (!queue.length || index >= queue.length) {
+    const upcoming = nextDueAt(studiable);
 
-  const next = () => {
+    return (
+      <div className="study">
+        <p className="study-empty">
+          {answered > 0
+            ? `Done — ${answered} card${answered === 1 ? '' : 's'} reviewed.`
+            : 'Nothing is due right now.'}
+          {upcoming ? ` Next review ${whenDue(upcoming)}.` : ''}
+        </p>
+        <div className="study-actions">
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              setQueue(shuffle(studiable));
+              setIndex(0);
+              setRevealed(false);
+            }}
+          >
+            Review everything anyway
+          </button>
+          <button type="button" className="recent-clear" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const card = queue[index];
+  const box = stateFor(card.term, card.lang).box;
+
+  const answer = (knewIt) => {
+    recordAnswer(card.term, card.lang, knewIt);
+    setAnswered((current) => current + 1);
     setRevealed(false);
-    setIndex((current) => (current + 1) % cards.length);
+    setIndex((current) => current + 1);
   };
 
   return (
     <section className="study" aria-label="Study cards">
       <p className="study-progress">
-        {index + 1} / {cards.length}
+        {index + 1} / {queue.length} · box {box}
       </p>
 
       <p className="study-definition">{card.definition}</p>
 
       {revealed ? (
-        <p className="study-answer">
-          <button type="button" className="study-word" onClick={() => onSelect(card.term, card.lang)}>
-            {card.term}
-          </button>
-        </p>
+        <>
+          <p className="study-answer">
+            <button
+              type="button"
+              className="study-word"
+              onClick={() => onSelect(card.term, card.lang)}
+            >
+              {card.term}
+            </button>
+          </p>
+          <div className="study-actions">
+            <button type="button" className="chip" onClick={() => answer(false)}>
+              Not yet
+            </button>
+            <button type="button" className="chip is-primary" onClick={() => answer(true)}>
+              I knew it
+            </button>
+          </div>
+        </>
       ) : (
         <button type="button" className="retry-button" onClick={() => setRevealed(true)}>
           Show the word
         </button>
       )}
 
-      <div className="study-actions">
-        <button type="button" className="chip" onClick={next}>
-          Next card
-        </button>
-        <button type="button" className="recent-clear" onClick={onClose}>
-          Done
-        </button>
-      </div>
+      <button type="button" className="recent-clear" onClick={onClose}>
+        Done
+      </button>
     </section>
   );
 };

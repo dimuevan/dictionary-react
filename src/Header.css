@@ -182,3 +182,24 @@
   .header-controls { gap: 10px; }
   .font-select { font-size: 14px; }
 }
+
+/* Two select menus, a switch and an icon do not fit beside the logo on a phone,
+   so the row is allowed to wrap rather than push the page sideways. */
+@media (max-width: 620px) {
+  .header {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  .header-controls {
+    gap: 10px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .font-select {
+    font-size: 13px;
+    padding: 4px 2px;
+  }
+}

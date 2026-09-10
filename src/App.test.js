@@ -4,6 +4,9 @@ import App from './App';
 import React from 'react';
 import { resetPrimaryBreaker } from './useDictionary';
 import { wordOfTheDay } from './wordOfTheDay';
+import { dueEntries, recordAnswer, stateFor } from './studySchedule';
+import { readFavourites, toTsv } from './favourites';
+import { restoreBackup } from './backup';
 
 /**
  * Each test here locks down a bug that shipped at some point: they are the
@@ -544,8 +547,9 @@ test('/ focuses the search box and Escape empties it', async () => {
   fireEvent.keyDown(window, { key: '/' });
   expect(input).toHaveFocus();
 
+  // Escape belongs to the box now, not to the window.
   fireEvent.change(input, { target: { value: 'keyboard' } });
-  fireEvent.keyDown(window, { key: 'Escape' });
+  fireEvent.keyDown(input, { key: 'Escape' });
   expect(input).toHaveValue('');
 });
 
@@ -648,9 +652,16 @@ test('offers completions while typing, and Escape closes them', async () => {
   const input = screen.getByLabelText('Search for a word');
   fireEvent.change(input, { target: { value: 'keyb' } });
 
-  const option = await screen.findByRole('button', { name: 'keyboardist' }, { timeout: 3000 });
-  fireEvent.keyDown(window, { key: 'Escape' });
-  await waitFor(() => expect(option).not.toBeInTheDocument());
+  await screen.findByRole('option', { name: 'keyboardist' }, { timeout: 3000 });
+  expect(screen.getByRole('listbox', { name: 'Suggestions' })).toBeInTheDocument();
+
+  fireEvent.keyDown(input, { key: 'Escape' });
+  // Hidden, so it leaves the accessibility tree entirely — the select menus on
+  // the page keep their own options, which is why this asks for the listbox.
+  await waitFor(() =>
+    expect(screen.queryByRole('listbox', { name: 'Suggestions' })).not.toBeInTheDocument()
+  );
+  expect(input).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('choosing a completion runs that search', async () => {
@@ -663,8 +674,39 @@ test('choosing a completion runs that search', async () => {
   render(<App />);
   fireEvent.change(screen.getByLabelText('Search for a word'), { target: { value: 'keyb' } });
 
-  fireEvent.click(await screen.findByRole('button', { name: 'keyboardist' }, { timeout: 3000 }));
+  fireEvent.click(await screen.findByRole('option', { name: 'keyboardist' }, { timeout: 3000 }));
   await waitFor(() => expect(window.location.search).toBe('?w=keyboardist'));
+});
+
+test('arrow keys walk the suggestions and Enter takes the highlighted one', async () => {
+  global.fetch = jest.fn((url) =>
+    String(url).includes('datamuse.com')
+      ? mockJson([{ word: 'keyboard' }, { word: 'keyboardist' }])
+      : mockJson([entry()])
+  );
+
+  render(<App />);
+  const input = screen.getByLabelText('Search for a word');
+  fireEvent.change(input, { target: { value: 'keyb' } });
+
+  await screen.findByRole('option', { name: 'keyboard' }, { timeout: 3000 });
+  expect(input).toHaveAttribute('aria-expanded', 'true');
+
+  fireEvent.keyDown(input, { key: 'ArrowDown' });
+  expect(screen.getByRole('option', { name: 'keyboard' })).toHaveAttribute('aria-selected', 'true');
+  expect(input.getAttribute('aria-activedescendant')).toBe(
+    screen.getByRole('option', { name: 'keyboard' }).id
+  );
+
+  fireEvent.keyDown(input, { key: 'ArrowDown' });
+  expect(screen.getByRole('option', { name: 'keyboardist' })).toHaveAttribute('aria-selected', 'true');
+
+  // Wrapping round and back proves both directions.
+  fireEvent.keyDown(input, { key: 'ArrowUp' });
+  expect(screen.getByRole('option', { name: 'keyboard' })).toHaveAttribute('aria-selected', 'true');
+
+  fireEvent.keyDown(input, { key: 'Enter' });
+  await waitFor(() => expect(window.location.search).toBe('?w=keyboard'));
 });
 
 test('shows the origin of a word when Wiktionary has one', async () => {
@@ -723,4 +765,134 @@ test('study cards ask for the word behind a definition', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Show the word' }));
   expect(screen.getByRole('button', { name: 'keyboard' })).toBeInTheDocument();
+});
+
+// ------------------------------------------------------- third board of ideas
+
+test('long entries collapse, and open on request', async () => {
+  const many = Array.from({ length: 7 }, (unused, index) => ({
+    definition: `Sense number ${index + 1}.`,
+  }));
+  global.fetch = jest.fn((url) =>
+    String(url).includes('dictionaryapi')
+      ? mockJson([entry({ meanings: [{ partOfSpeech: 'noun', definitions: many, synonyms: [], antonyms: [] }] })])
+      : mockJson([])
+  );
+
+  render(<App />);
+  search('set');
+
+  expect(await screen.findByText('Sense number 3.')).toBeInTheDocument();
+  expect(screen.queryByText('Sense number 4.')).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show all 7 definitions' }));
+  expect(screen.getByText('Sense number 7.')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
+  expect(screen.queryByText('Sense number 7.')).not.toBeInTheDocument();
+});
+
+test('offers rhymes and similar words, each a new lookup', async () => {
+  global.fetch = jest.fn((url) => {
+    const target = String(url);
+    if (target.includes('rel_rhy')) return mockJson([{ word: 'fjord' }]);
+    if (target.includes('ml=')) return mockJson([{ word: 'typewriter' }]);
+    if (target.includes('datamuse')) return mockJson([]);
+    return mockJson([entry()]);
+  });
+
+  render(<App />);
+  search('keyboard');
+
+  expect(await screen.findByText('Rhymes')).toBeInTheDocument();
+  expect(screen.getByText('Similar in meaning')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'typewriter' }));
+  await waitFor(() => expect(window.location.search).toBe('?w=typewriter'));
+});
+
+test('a card answered correctly leaves the queue', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  fireEvent.click(screen.getByRole('button', { name: 'Save this word' }));
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Study' }));
+
+  expect(screen.getByText(/box 1/)).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Show the word' }));
+  fireEvent.click(screen.getByRole('button', { name: 'I knew it' }));
+
+  // Only one saved word, so answering it empties the queue.
+  expect(screen.getByText(/1 card reviewed/)).toBeInTheDocument();
+  expect(screen.getByText(/Next review tomorrow/)).toBeInTheDocument();
+});
+
+test('the schedule moves a word up on success and back to the first box on failure', () => {
+  const now = Date.UTC(2026, 0, 1);
+
+  expect(recordAnswer('keyboard', 'en', true, now).box).toBe(2);
+  expect(recordAnswer('keyboard', 'en', true, now).box).toBe(3);
+  expect(recordAnswer('keyboard', 'en', false, now)).toEqual({ box: 1, dueAt: now });
+
+  // Box 1 is due at once; a promoted word is not.
+  expect(dueEntries([{ term: 'keyboard', lang: 'en' }], now)).toHaveLength(1);
+  recordAnswer('keyboard', 'en', true, now);
+  expect(dueEntries([{ term: 'keyboard', lang: 'en' }], now)).toHaveLength(0);
+});
+
+test('a backup restores words, saved entries and the schedule', () => {
+  const backup = {
+    format: 'dictionearch-backup',
+    version: 1,
+    words: { 'en:atlas': { savedAt: 2, payload: { data: [{ word: 'atlas', meanings: [] }] } } },
+    favourites: { 'en:atlas': { term: 'atlas', lang: 'en', savedAt: 2 } },
+    study: { 'en:atlas': { box: 3, dueAt: 0 } },
+  };
+
+  expect(restoreBackup(backup)).toEqual({ words: 1, favourites: 1, study: 1 });
+  expect(readFavourites().map((item) => item.term)).toEqual(['atlas']);
+  expect(stateFor('atlas', 'en').box).toBe(3);
+
+  // A file from somewhere else is refused rather than half-applied.
+  expect(restoreBackup({ format: 'something-else', words: {} })).toBeNull();
+  expect(restoreBackup('not even an object')).toBeNull();
+});
+
+test('a backup keeps whichever copy of a word is newer', () => {
+  restoreBackup({
+    format: 'dictionearch-backup',
+    favourites: { 'en:atlas': { term: 'atlas', lang: 'en', savedAt: 500 } },
+  });
+  restoreBackup({
+    format: 'dictionearch-backup',
+    favourites: { 'en:atlas': { term: 'atlas', lang: 'en', savedAt: 100 } },
+  });
+
+  expect(readFavourites()[0].savedAt).toBe(500);
+});
+
+test('exports Anki rows as word and definition, tab separated', () => {
+  const rows = toTsv(
+    [{ term: 'keyboard', lang: 'en' }, { term: 'atlas', lang: 'en' }],
+    (item) => (item.term === 'keyboard' ? 'A set of\tkeys.' : '')
+  );
+
+  // Tabs inside a definition would break the format, so they are flattened.
+  expect(rows).toBe('keyboard\tA set of keys.\natlas\t');
+});
+
+test('offers the entry as an image without failing where canvas is unavailable', async () => {
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  const button = screen.getByRole('button', { name: 'Download this word as an image' });
+  expect(button).toBeInTheDocument();
+  fireEvent.click(button); // jsdom has no 2d context; this must not throw
+  await waitFor(() => expect(button).toBeInTheDocument());
 });

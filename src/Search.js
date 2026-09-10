@@ -5,10 +5,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { DEFAULT_LANGUAGE } from './languages';
 import { fetchCompletions } from './datamuse';
 
+const LISTBOX_ID = 'search-completions';
+const optionId = (index) => `${LISTBOX_ID}-option-${index}`;
+
 const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
   const [input, setInput] = useState(term);
   const [completions, setCompletions] = useState([]);
   const [dismissed, setDismissed] = useState(true);
+  const [active, setActive] = useState(-1);
+  const inputRef = useRef(null);
+
+  const open = completions.length > 0;
 
   // The word can also be chosen away from this box — from the address bar, a
   // recent chip, or a synonym — and the box should show what is on screen.
@@ -19,6 +26,7 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
   const handleInputChange = (event) => {
     setInput(event.target.value);
     setDismissed(false);
+    setActive(-1);
   };
 
   // Completions are a convenience, not the search: they are debounced, cancelled
@@ -33,7 +41,10 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
       fetchCompletions(typed.toLowerCase(), controller.signal).then((words) => {
-        if (!controller.signal.aborted) setCompletions(words);
+        if (!controller.signal.aborted) {
+          setCompletions(words);
+          setActive(-1);
+        }
       });
     }, 200);
 
@@ -43,61 +54,74 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
     };
   }, [input, lang, term, dismissed]);
 
-  const choose = (word) => {
+  const close = () => {
     setCompletions([]);
     setDismissed(true);
+    setActive(-1);
+  };
+
+  const choose = (word) => {
+    close();
     onSearch(word);
   };
-  
-  // Create a reference to the input element
-  const inputRef = useRef(null);
 
   // After the component mounts, set focus to the input element
   useEffect(() => {
-    // Check if the input element exists and if so, call its focus method
-    if(inputRef.current) {
+    if (inputRef.current) {
       inputRef.current.focus();
     }
-  }, []); // Empty dependency array means this effect runs once after initial render
+  }, []);
 
-  // "/" jumps to the box and Escape empties it, the way a search tool behaves.
-  // Neither fires while the reader is typing somewhere else.
+  // "/" jumps to the box from anywhere, unless the reader is typing in another
+  // field. Everything else is handled on the input itself, where it belongs.
   useEffect(() => {
-    const handleKeyDown = (event) => {
-      const active = document.activeElement;
+    const handleShortcut = (event) => {
+      const focused = document.activeElement;
       const typingElsewhere =
-        active && active !== inputRef.current &&
-        (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+        focused && focused !== inputRef.current &&
+        (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA' || focused.isContentEditable);
 
       if (event.key === '/' && !typingElsewhere && !event.metaKey && !event.ctrlKey) {
         event.preventDefault();
         inputRef.current?.focus();
-        return;
-      }
-
-      if (event.key === 'Escape' && active === inputRef.current) {
-        // Escape closes the suggestions first, and only then empties the box.
-        setCompletions((current) => {
-          if (current.length) {
-            setDismissed(true);
-            return [];
-          }
-          setInput('');
-          return current;
-        });
-        inputRef.current?.focus();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleShortcut);
+    return () => window.removeEventListener('keydown', handleShortcut);
   }, []);
+
+  /** Arrow keys walk the list, Enter takes the highlighted word, Escape backs out. */
+  const handleKeyDown = (event) => {
+    if (event.key === 'ArrowDown' && open) {
+      event.preventDefault();
+      setActive((current) => (current + 1) % completions.length);
+      return;
+    }
+
+    if (event.key === 'ArrowUp' && open) {
+      event.preventDefault();
+      setActive((current) => (current <= 0 ? completions.length - 1 : current - 1));
+      return;
+    }
+
+    if (event.key === 'Enter' && open && active >= 0) {
+      event.preventDefault(); // the highlighted word wins over submitting the box
+      choose(completions[active]);
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      // Escape closes the suggestions first, and only then empties the box.
+      if (open) close();
+      else setInput('');
+    }
+  };
 
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent the default form submit action
     if (input.trim()) { // Check if the input is not just whitespace
-      setCompletions([]);
-      setDismissed(true);
+      close();
       onSearch(input);
     }
   };
@@ -111,7 +135,13 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
         placeholder="Search a word, e.g. keyboard"
         value={input}
         onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
         aria-label="Search for a word"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={LISTBOX_ID}
+        aria-autocomplete="list"
+        aria-activedescendant={active >= 0 ? optionId(active) : undefined}
       />
       <button type="submit" className="search-button" aria-label="Search">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -119,19 +149,31 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
             <path d="M18.4429 18.9772L22.4762 23" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
-      {/* A plain list of buttons, not a listbox: a listbox's children must be
-          options, and buttons are already reachable and announced correctly. */}
-      {completions.length > 0 && (
-        <ul className="completions" aria-label="Suggestions">
-          {completions.map((word) => (
-            <li key={word}>
-              <button type="button" className="completion" onClick={() => choose(word)}>
-                {word}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
+
+      {/* A real listbox this time: the options are options, and the input points
+          at the highlighted one with aria-activedescendant. */}
+      <ul
+        className="completions"
+        id={LISTBOX_ID}
+        role="listbox"
+        aria-label="Suggestions"
+        hidden={!open}
+      >
+        {completions.map((word, index) => (
+          <li
+            key={word}
+            id={optionId(index)}
+            role="option"
+            aria-selected={index === active}
+            className={`completion ${index === active ? 'is-active' : ''}`}
+            onMouseDown={(event) => event.preventDefault()} // keep focus in the box
+            onClick={() => choose(word)}
+            onMouseEnter={() => setActive(index)}
+          >
+            {word}
+          </li>
+        ))}
+      </ul>
     </form>
   );
 };

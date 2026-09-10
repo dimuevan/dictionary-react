@@ -96,26 +96,19 @@
     overflow-y: auto;
   }
 
-  .completions li { margin: 0; padding: 0; }
-
   .completion {
     display: block;
-    width: 100%;
-    text-align: left;
     font-family: inherit;
     font-size: 17px;
     color: var(--text-color-search);
-    background: none;
-    border: none;
     border-radius: 10px;
     padding: 10px 18px;
+    margin: 0;
     cursor: pointer;
   }
 
-  .completion:hover { color: #a543e8; }
-
-  .completion:focus-visible {
-    outline: 2px solid #a543e8;
-    outline-offset: -2px;
+  /* Focus stays in the input, so the highlighted option is the only cue. */
+  .completion.is-active {
     color: #a543e8;
+    background: rgb(165 67 232 / 12%);
   }

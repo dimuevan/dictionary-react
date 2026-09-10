@@ -86,3 +86,16 @@ export const toCsv = (entries, lookupDefinition) => {
 
   return rows.map((row) => row.map(escapeCell).join(',')).join('\n');
 };
+
+/**
+ * Anki reads tab-separated fields: front, then back. Anyone studying seriously
+ * is already in Anki, and this is a small step from the CSV we already build.
+ */
+export const toTsv = (entries, lookupDefinition) =>
+  entries
+    .map((entry) => {
+      const back = lookupDefinition ? lookupDefinition(entry) || '' : '';
+      const clean = (value) => String(value).replace(/[\t\r\n]+/g, ' ').trim();
+      return `${clean(entry.term)}\t${clean(back)}`;
+    })
+    .join('\n');

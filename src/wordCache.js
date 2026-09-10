@@ -73,6 +73,19 @@ export const readCachedPayload = (term, lang = DEFAULT_LANGUAGE) => {
   return entry ? entry.payload : null;
 };
 
+/** Raw access, used only by backup and restore. */
+export const readRawCache = () => readAll();
+
+export const writeRawCache = (all) => {
+  try {
+    window.localStorage.setItem(CACHE_KEY, JSON.stringify(all));
+  } catch (error) {
+    // out of quota; nothing more to do
+  }
+};
+
+export const CACHE_KEY_NAME = CACHE_KEY;
+
 export const clearCachedWords = () => {
   try {
     window.localStorage.removeItem(CACHE_KEY);

@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  build:
+  unit:
+    name: Tests and build
     runs-on: ubuntu-latest
 
     steps:
@@ -28,3 +29,34 @@ jobs:
         run: npm run build
         env:
           CI: true
+
+  browser:
+    name: Browser checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The preview build is what the suite serves: relative asset paths, so it
+      # runs from the root instead of the deploy subdirectory.
+      - name: Run browser checks
+        run: npm run e2e
+        env:
+          CI: true
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

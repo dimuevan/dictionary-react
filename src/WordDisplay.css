@@ -474,3 +474,29 @@ ul li::marker {
     .word-actions { gap: 4px; }
     .icon-button { font-size: 17px; padding: 6px; }
   }
+
+  .show-all {
+    font-family: inherit;
+    font-size: 14px;
+    color: #a543e8;
+    background: none;
+    border: none;
+    padding: 0;
+    margin: -24px 0 30px 42px;
+    cursor: pointer;
+    text-underline-offset: 4px;
+  }
+
+  .show-all:hover { text-decoration: underline; }
+
+  .show-all:focus-visible {
+    outline: 2px solid #a543e8;
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  .related-section { margin-top: 26px; }
+
+  @media (max-width: 768px) {
+    .show-all { margin-left: 27px; }
+  }

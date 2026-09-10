@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react';
 
 import { DEFAULT_LANGUAGE } from './languages';
 import { fetchEtymology } from './etymology';
-import { fetchFrequency } from './datamuse';
+import { fetchFrequency, fetchRelatedWords } from './datamuse';
+import { downloadWordCard } from './wordCardImage';
 import { isFavourite, toggleFavourite } from './favourites';
 import { shareUrlFor } from './urlTerm';
 
@@ -93,12 +94,36 @@ const collectPronunciations = (phonetics) => {
     });
 };
 
+// Words like "set" carry dozens of senses; showing them all turns the entry
+// into a wall. The rest stay one click away.
+const COLLAPSED_DEFINITIONS = 3;
+
+const visibleDefinitions = (group, expanded) =>
+  expanded[group.partOfSpeech]
+    ? group.definitions
+    : group.definitions.slice(0, COLLAPSED_DEFINITIONS);
+
+const firstDefinitionOf = (groups) => {
+  const group = groups[0];
+  return group && group.definitions[0] ? group.definitions[0].definition : '';
+};
+
+const sourceHost = (urls) => {
+  try {
+    return Array.isArray(urls) && urls[0] ? new URL(urls[0]).hostname : '';
+  } catch (error) {
+    return '';
+  }
+};
+
 const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAGE }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [selected, setSelected] = useState(0);
   const [copied, setCopied] = useState(false);
   const [frequency, setFrequency] = useState(null);
   const [etymology, setEtymology] = useState(null);
+  const [related, setRelated] = useState({ rhymes: [], similar: [] });
+  const [expanded, setExpanded] = useState({});
 
   const headword = wordData.data[0].word;
   const [starred, setStarred] = useState(() => isFavourite(headword, lang));
@@ -124,6 +149,19 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
   }, [headword, lang]);
 
   useEffect(() => {
+    setRelated({ rhymes: [], similar: [] });
+    setExpanded({});
+    if (lang !== DEFAULT_LANGUAGE) return undefined;
+
+    const controller = new AbortController();
+    fetchRelatedWords(headword, controller.signal).then((result) => {
+      if (!controller.signal.aborted) setRelated(result);
+    });
+
+    return () => controller.abort();
+  }, [headword, lang]);
+
+  useEffect(() => {
     setEtymology(null);
     const controller = new AbortController();
 
@@ -136,6 +174,15 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
 
   const handleStar = () => {
     setStarred(toggleFavourite(headword, lang));
+  };
+
+  const handleShareImage = () => {
+    downloadWordCard({
+      word: headword,
+      phonetic: phoneticText,
+      definition: firstDefinitionOf(meaningGroups),
+      source: sourceHost(wordData.sourceUrls),
+    });
   };
 
   const handleCopy = async () => {
@@ -239,6 +286,15 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
             {copied ? '✓' : '⧉'}
           </button>
 
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleShareImage}
+            aria-label="Download this word as an image"
+          >
+            ⬇
+          </button>
+
           {pronunciation && (
             <button
               type="button"
@@ -262,7 +318,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
           <p className='subtitle'>Meaning</p>
 
           <ul>
-            {group.definitions.map((def, index) => (
+            {visibleDefinitions(group, expanded).map((def, index) => (
               <li className='meanings--definition' key={`${group.partOfSpeech}-${index}`}>
                 {def.definition}
                 {def.example && (
@@ -271,6 +327,23 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
               </li>
             ))}
           </ul>
+
+          {group.definitions.length > COLLAPSED_DEFINITIONS && (
+            <button
+              type="button"
+              className="show-all"
+              onClick={() =>
+                setExpanded((current) => ({
+                  ...current,
+                  [group.partOfSpeech]: !current[group.partOfSpeech],
+                }))
+              }
+            >
+              {expanded[group.partOfSpeech]
+                ? 'Show fewer'
+                : `Show all ${group.definitions.length} definitions`}
+            </button>
+          )}
 
           {group.synonyms.length > 0 && (
             <div className="synonyms">
@@ -287,6 +360,23 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
           )}
         </div>
       ))}
+
+      {(related.similar.length > 0 || related.rhymes.length > 0) && (
+        <div className="related-section">
+          {related.similar.length > 0 && (
+            <div className="synonyms">
+              <p className='subtitle'>Similar in meaning</p>
+              <span className='keywords'>{renderWords(related.similar, onSelectWord)}</span>
+            </div>
+          )}
+          {related.rhymes.length > 0 && (
+            <div className="synonyms">
+              <p className='subtitle'>Rhymes</p>
+              <span className='keywords'>{renderWords(related.rhymes, onSelectWord)}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {etymology && (
         <div className="etymology-section">

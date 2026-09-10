@@ -77,3 +77,25 @@ export const fetchFrequency = async (term, signal) => {
 
   return exact ? describeFrequency(exact.tags) : null;
 };
+
+const wordsFrom = (results, term, limit) =>
+  results
+    .map((result) => (result && typeof result.word === 'string' ? result.word : ''))
+    .filter((word) => word && word.toLowerCase() !== term.toLowerCase())
+    .slice(0, limit);
+
+/**
+ * Two more relationships the dictionary itself does not carry. They make an
+ * entry useful to someone writing, not only to someone reading.
+ */
+export const fetchRelatedWords = async (term, signal) => {
+  const [rhymes, meaningAlike] = await Promise.all([
+    ask(`rel_rhy=${encodeURIComponent(term)}&max=10`, signal),
+    ask(`ml=${encodeURIComponent(term)}&max=10`, signal),
+  ]);
+
+  return {
+    rhymes: wordsFrom(rhymes, term, 8),
+    similar: wordsFrom(meaningAlike, term, 8),
+  };
+};

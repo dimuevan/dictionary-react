@@ -1,7 +1,8 @@
 import './RecentWords.css';
 
-import React, { useState } from 'react';
-import { clearFavourites, readFavourites, removeFavourite, toCsv } from './favourites';
+import React, { useRef, useState } from 'react';
+import { clearFavourites, readFavourites, removeFavourite, toCsv, toTsv } from './favourites';
+import { buildBackup, restoreBackup } from './backup';
 import { clearCachedWords, readCachedPayload, readRecentWords } from './wordCache';
 
 import StudyCards from './StudyCards';
@@ -14,17 +15,13 @@ const firstDefinition = (payload) => {
   return definition ? definition.definition : '';
 };
 
-const downloadCsv = (entries) => {
-  const csv = toCsv(entries, (entry) =>
-    firstDefinition(readCachedPayload(entry.term, entry.lang))
-  );
-
+const download = (contents, filename, type) => {
   try {
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob([contents], { type });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'dictionearch-words.csv';
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -33,6 +30,8 @@ const downloadCsv = (entries) => {
     // downloads can be blocked; the collection is still on screen
   }
 };
+
+const definitionOf = (entry) => firstDefinition(readCachedPayload(entry.term, entry.lang));
 
 /**
  * What the empty screen offers: the words already looked up, the ones kept on
@@ -44,6 +43,39 @@ const RecentWords = ({ onSelect }) => {
   const [recent, setRecent] = useState(() => readRecentWords(10));
   const [saved, setSaved] = useState(() => readFavourites());
   const [studying, setStudying] = useState(false);
+  const [restoreNote, setRestoreNote] = useState('');
+  const fileRef = useRef(null);
+
+  const handleRestore = (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = ''; // let the same file be chosen twice
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      let payload;
+      try {
+        payload = JSON.parse(String(reader.result));
+      } catch (error) {
+        setRestoreNote('That file could not be read.');
+        return;
+      }
+
+      const result = restoreBackup(payload);
+      if (!result) {
+        setRestoreNote('That is not a Dictionearch backup.');
+        return;
+      }
+
+      setRecent(readRecentWords(10));
+      setSaved(readFavourites());
+      setRestoreNote(
+        `Restored ${result.words} word${result.words === 1 ? '' : 's'} and ${result.favourites} saved.`
+      );
+    };
+    reader.onerror = () => setRestoreNote('That file could not be read.');
+    reader.readAsText(file);
+  };
 
   const entries = tab === 'recent' ? recent : saved;
   if (!recent.length && !saved.length) return null;
@@ -137,17 +169,52 @@ const RecentWords = ({ onSelect }) => {
             <button type="button" className="recent-clear" onClick={() => setStudying(true)}>
               Study
             </button>
-            <button type="button" className="recent-clear" onClick={() => downloadCsv(saved)}>
-              Export CSV
+            <button
+              type="button"
+              className="recent-clear"
+              onClick={() => download(toCsv(saved, definitionOf), 'dictionearch-words.csv', 'text/csv;charset=utf-8')}
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              className="recent-clear"
+              onClick={() => download(toTsv(saved, definitionOf), 'dictionearch-anki.tsv', 'text/tab-separated-values;charset=utf-8')}
+            >
+              Anki
             </button>
           </>
         )}
+
+        <button
+          type="button"
+          className="recent-clear"
+          onClick={() =>
+            download(JSON.stringify(buildBackup(), null, 2), 'dictionearch-backup.json', 'application/json')
+          }
+        >
+          Back up
+        </button>
+
+        <button type="button" className="recent-clear" onClick={() => fileRef.current?.click()}>
+          Restore
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="visually-hidden"
+          aria-label="Restore from a backup file"
+          onChange={handleRestore}
+        />
         {entries.length > 0 && (
           <button type="button" className="recent-clear" onClick={handleClear}>
             Clear
           </button>
         )}
       </div>
+
+      {restoreNote && <p className="recent-empty">{restoreNote}</p>}
     </nav>
   );
 };
