@@ -276,41 +276,41 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
           <h2 className="word-title" lang={lang}>
             {entries[0].word}
           </h2>
-          {phoneticText && (
+          {(phoneticText || pronunciations.length > 1) && (
             <div className="phonetics">
-              <div className="phonetic-text">{phoneticText}</div>
-            </div>
-          )}
+              {phoneticText && <div className="phonetic-text">{phoneticText}</div>}
 
-          {audioFailed && (
-            <p className="audio-failed" role="status">
-              That recording would not play. The phonetic spelling above still stands.
-            </p>
+              {pronunciations.length > 1 && (
+                <div className="accents" role="group" aria-label="Pronunciations">
+                  {pronunciations.map((option, index) => (
+                    <button
+                      key={option.audio}
+                      type="button"
+                      className={`accent ${index === selected ? 'is-selected' : ''}`}
+                      aria-pressed={index === selected}
+                      onClick={() => play(index)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {frequency && (
             <p className={`frequency is-${frequency.label}`}>
               {frequency.label}
               <span className="frequency-detail">
-                {' '}· {frequency.perMillion.toFixed(2)} per million words
+                {' '}— {frequency.perMillion.toFixed(2)} per million words
               </span>
             </p>
           )}
 
-          {pronunciations.length > 1 && (
-            <div className="accents" role="group" aria-label="Pronunciations">
-              {pronunciations.map((option, index) => (
-                <button
-                  key={option.audio}
-                  type="button"
-                  className={`accent ${index === selected ? 'is-selected' : ''}`}
-                  aria-pressed={index === selected}
-                  onClick={() => play(index)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+          {audioFailed && (
+            <p className="audio-failed" role="status">
+              That recording would not play. The phonetic spelling above still stands.
+            </p>
           )}
         </div>
 
@@ -381,6 +381,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
                   onClick={() => chooseSense(def.definition)}
                   aria-pressed={studySense === def.definition}
                 >
+                  <span className="sense-mark" aria-hidden="true">
+                    {studySense === def.definition ? '★' : '☆'}
+                  </span>
                   {studySense === def.definition ? 'Studying this sense' : 'Study this sense'}
                 </button>
               </li>
@@ -398,6 +401,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
                 }))
               }
             >
+              <span className="show-all-mark" aria-hidden="true">
+                {expanded[group.partOfSpeech] ? '−' : '+'}
+              </span>
               {expanded[group.partOfSpeech]
                 ? 'Show fewer'
                 : `Show all ${group.definitions.length} definitions`}
@@ -421,7 +427,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
       ))}
 
       {(related.similar.length > 0 || related.rhymes.length > 0) && (
-        <div className="related-section">
+        <div className="meanings-section related-section">
+          <h3><span>elsewhere</span></h3>
+
           {related.similar.length > 0 && (
             <div className="synonyms">
               <p className='subtitle'>Similar in meaning</p>
@@ -438,9 +446,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
       )}
 
       {etymology && (
-        <div className="etymology-section">
-          <p className='subtitle'>Origin</p>
-          <p className="etymology-text">{etymology}</p>
+        <div className="meanings-section etymology-section">
+          <h3><span>origin</span></h3>
+          <p className="etymology-text" lang={lang}>{etymology}</p>
         </div>
       )}
 

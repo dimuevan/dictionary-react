@@ -90,7 +90,7 @@ const StudyCards = ({ entries, onClose, onSelect }) => {
           >
             Review everything anyway
           </button>
-          <button type="button" className="recent-clear" onClick={onClose}>
+          <button type="button" className="quiet-button" onClick={onClose}>
             Done
           </button>
         </div>
@@ -128,21 +128,21 @@ const StudyCards = ({ entries, onClose, onSelect }) => {
             </button>
           </p>
           <div className="study-actions">
-            <button type="button" className="chip" onClick={() => answer(false)}>
+            <button type="button" className="answer-button" onClick={() => answer(false)}>
               Not yet
             </button>
-            <button type="button" className="chip is-primary" onClick={() => answer(true)}>
+            <button type="button" className="answer-button is-known" onClick={() => answer(true)}>
               I knew it
             </button>
           </div>
         </>
       ) : (
-        <button type="button" className="retry-button" onClick={() => setRevealed(true)}>
+        <button type="button" className="pill-button" onClick={() => setRevealed(true)}>
           Show the word
         </button>
       )}
 
-      <button type="button" className="recent-clear" onClick={onClose}>
+      <button type="button" className="quiet-button" onClick={onClose}>
         Done
       </button>
     </section>

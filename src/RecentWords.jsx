@@ -162,7 +162,7 @@ const RecentWords = ({ onSelect }) => {
                   aria-label={`Remove ${entry.term}`}
                   onClick={() => handleForget(entry)}
                 >
-                  ×
+                  <span aria-hidden="true">×</span>
                 </button>
               )}
             </li>
@@ -172,22 +172,25 @@ const RecentWords = ({ onSelect }) => {
 
       {tab === 'saved' && saved.length > 0 && <StudyProgress counts={boxCounts(saved)} />}
 
+      {tab === 'saved' && saved.length > 0 && (
+        <button type="button" className="pill-button" onClick={() => setStudying(true)}>
+          Study {saved.length === 1 ? '1 word' : `${saved.length} words`}
+        </button>
+      )}
+
       <div className="recent-actions">
         {tab === 'saved' && saved.length > 0 && (
           <>
-            <button type="button" className="recent-clear" onClick={() => setStudying(true)}>
-              Study
-            </button>
             <button
               type="button"
-              className="recent-clear"
+              className="quiet-button"
               onClick={() => download(toCsv(saved, definitionOf), 'dictionearch-words.csv', 'text/csv;charset=utf-8')}
             >
               CSV
             </button>
             <button
               type="button"
-              className="recent-clear"
+              className="quiet-button"
               onClick={() => download(toTsv(saved, definitionOf), 'dictionearch-anki.tsv', 'text/tab-separated-values;charset=utf-8')}
             >
               Anki
@@ -197,7 +200,7 @@ const RecentWords = ({ onSelect }) => {
 
         <button
           type="button"
-          className="recent-clear"
+          className="quiet-button"
           onClick={() =>
             download(JSON.stringify(buildBackup(), null, 2), 'dictionearch-backup.json', 'application/json')
           }
@@ -205,23 +208,26 @@ const RecentWords = ({ onSelect }) => {
           Back up
         </button>
 
-        <button type="button" className="recent-clear" onClick={() => fileRef.current?.click()}>
+        <button type="button" className="quiet-button" onClick={() => fileRef.current?.click()}>
           Restore
         </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json,.json"
-          className="visually-hidden"
-          aria-label="Restore from a backup file"
-          onChange={handleRestore}
-        />
+
         {entries.length > 0 && (
-          <button type="button" className="recent-clear" onClick={handleClear}>
+          <button type="button" className="quiet-button" onClick={handleClear}>
             Clear
           </button>
         )}
       </div>
+
+      {/* Outside the row: an input between two buttons breaks the separators. */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="visually-hidden"
+        aria-label="Restore from a backup file"
+        onChange={handleRestore}
+      />
 
       {restoreNote && <p className="recent-empty">{restoreNote}</p>}
     </nav>

@@ -70,14 +70,15 @@
   
   /* Styling for the moon icon, adjust size as needed */
   .moon-icon {
-    /* font-size: 24px; */
-    /* cursor: pointer; */
     width: 32px;
     height: 32px;
     display: flex;
     justify-content: center;
     align-items: center;
-    opacity: 0.4;
+    /* Same as the search icon: a control, not decoration, and 1.4.11 asks 3:1
+       of one. axe checks text contrast only, so this is the half no tool
+       reports. */
+    opacity: 0.75;
   }
   
   /* Ensuring that the menu icon has some padding for clickable area */

@@ -9,9 +9,20 @@
     width: 100%;
     /* The completions float over the page, so the bar itself must not reflow. */
     position: relative;
-    transition: all 300ms;
+    /* Named properties, not `all`: `all` also animated the focus ring, so the
+       ring faded in over 300ms and for the first frames of it there was
+       nothing to see. A focus ring has to be there the moment focus is. */
+    transition: background-color 0.3s, color 0.3s;
   }
   
+  /* The search box is the first thing focus lands on and had no ring at all —
+     the one place in the app where you could not see where you were. The whole
+     bar takes it, rather than the bare input inside it. */
+  .search-bar:focus-within {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 3px;
+  }
+
   .search-input {
     width: 100%;
     padding: 20px 0px 18px 24px;
@@ -36,7 +47,9 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    opacity: 0.4;
+    /* An icon is a user-interface component, and 1.4.11 asks 3:1 of one. axe
+       checks text contrast only, so this is the half no tool reports. */
+    opacity: 0.75;
     transition: opacity 0.3s;
   }
 

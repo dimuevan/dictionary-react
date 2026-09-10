@@ -110,7 +110,7 @@ test('saving a word puts it under Saved, ready to study', async ({ page }) => {
   await page.click('[role="tab"]:has-text("Saved")');
 
   await expect(page.locator('.recent-list .chip')).toHaveText(['keyboard']);
-  await page.click('.recent-clear:has-text("Study")');
+  await page.click('.pill-button:has-text("Study")');
   await expect(page.locator('.study-definition')).toBeVisible();
 });
 

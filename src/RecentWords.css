@@ -10,11 +10,8 @@
 
 .recent-label {
   margin: 0;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-color);
-  opacity: 0.65;
+  font-size: 15px;
+  color: var(--text-muted);
 }
 
 .recent-list {
@@ -29,56 +26,37 @@
 
 .recent-list li {
   display: inline-flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
   margin: 0;
   padding: 0;
   line-height: normal;
+  background: var(--background-search);
+  border-radius: 999px;
+  transition: box-shadow 0.18s;
+}
+
+.recent-list li:hover {
+  box-shadow: inset 0 0 0 1px rgb(139 47 201 / 35%);
 }
 
 .chip {
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-color);
-  background: var(--background-search);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 7px 16px 8px;
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s;
-}
-
-.chip:hover {
-  color: #a543e8;
-  border-color: rgb(165 67 232 / 45%);
-}
-
-.chip:focus-visible {
-  outline: 2px solid #a543e8;
-  outline-offset: 2px;
-}
-
-.recent-clear {
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--text-color);
-  opacity: 0.65;
   background: none;
   border: none;
-  padding: 4px 8px;
+  border-radius: 999px;
+  padding: 8px 17px 9px;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  transition: color 0.18s;
 }
 
-.recent-clear:hover {
-  opacity: 1;
-}
+.chip:hover { color: var(--accent-text); }
 
-.recent-clear:focus-visible {
-  outline: 2px solid #a543e8;
+.chip:focus-visible {
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
-  opacity: 1;
+  border-radius: 999px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -94,30 +72,27 @@
 
 .recent-tab {
   font-family: inherit;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-color);
-  opacity: 0.65;
+  font-size: 15px;
+  color: var(--text-muted);
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 4px 10px 6px;
+  padding: 5px 12px 7px;
   cursor: pointer;
-  transition: opacity 0.2s, border-color 0.2s;
+  transition: color 0.2s, border-color 0.2s;
 }
 
-.recent-tab:hover { opacity: 0.85; }
+.recent-tab:hover { color: var(--text-color); }
 
 .recent-tab.is-active {
-  opacity: 1;
-  border-bottom-color: #a543e8;
+  color: var(--text-color);
+  border-bottom-color: var(--accent-solid);
 }
 
 .recent-tab:focus-visible {
-  outline: 2px solid #a543e8;
+  outline: 2px solid var(--accent-text);
   outline-offset: 2px;
-  opacity: 1;
+  color: var(--text-color);
 }
 
 .chip-lang {
@@ -125,44 +100,57 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.5;
+  color: var(--text-muted);
 }
 
 .chip-remove {
   font-family: inherit;
   font-size: 17px;
   line-height: 1;
-  color: var(--text-color);
-  opacity: 0.35;
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
   background: none;
   border: none;
-  padding: 4px 6px;
+  padding: 0 14px 0 2px;
+  border-radius: 0 999px 999px 0;
   cursor: pointer;
+  transition: color 0.18s;
 }
 
-.chip-remove:hover { opacity: 0.9; color: #a543e8; }
+.chip-remove:hover { color: var(--accent-text); }
 
 .chip-remove:focus-visible {
-  outline: 2px solid #a543e8;
-  outline-offset: 2px;
-  opacity: 1;
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+  border-radius: 999px;
 }
 
 .recent-empty {
   margin: 0;
-  font-size: 14px;
-  color: var(--text-color);
-  opacity: 0.45;
+  font-size: 15px;
+  color: var(--text-muted);
   text-align: center;
   max-width: 32em;
 }
 
+/* The utilities. They were six underlined links in a row, which read as a
+   debug menu; separated by hairline dots and underlined only on hover, they
+   read as what they are — things you can do, none of them urgent. */
 .recent-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 0;
   flex-wrap: wrap;
   justify-content: center;
+  margin-top: 4px;
+}
+
+.recent-actions .quiet-button + .quiet-button::before {
+  content: "·";
+  margin: 0 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {

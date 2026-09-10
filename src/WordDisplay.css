@@ -111,7 +111,11 @@
   }
 
   .phonetics {
-    margin-top: 10px;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
   }
   
   .phonetic-entry {
@@ -219,8 +223,8 @@
 
 .meanings--example {
   display: block;
-  opacity: 0.6;
-  margin: 12px 0;
+  color: var(--text-muted);
+  margin: 10px 0 0;
   font-style: italic;
 }
 
@@ -239,7 +243,9 @@ ul {
 ul li {
   padding-left: 18px;
   line-height: 28px;
-  margin-bottom: 12px;
+  /* Each item is now a definition, sometimes an example, and a control, so it
+     needs enough air to read as one block rather than three loose lines. */
+  margin-bottom: 26px;
   font-size: 17px;
 }
 
@@ -337,68 +343,82 @@ ul li::marker {
   }
 
   /* One chip per available recording, shown only when there is a choice. */
+  /* One control, not a scatter of outlined pills: the same fill and radius the
+     search bar has, with the chosen accent filled in. */
   .accents {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 12px;
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--background-search);
+    border-radius: 999px;
   }
 
   .accent {
     font-family: inherit;
-    font-size: 12px;
-    letter-spacing: 0.06em;
-    color: var(--text-color);
-    opacity: 0.55;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
     background: none;
-    border: 1px solid currentColor;
+    border: none;
     border-radius: 999px;
-    padding: 3px 11px 4px;
+    padding: 5px 13px 6px;
     cursor: pointer;
     transition: opacity 0.2s, color 0.2s;
   }
 
-  .accent:hover { opacity: 1; }
+  .accent:hover { color: var(--accent-text); }
 
   .accent.is-selected {
-    color: #a543e8;
-    opacity: 1;
+    background: var(--accent-solid);
+    color: var(--accent-on);
   }
 
   .accent:focus-visible {
-    outline: 2px solid #a543e8;
+    outline: 2px solid var(--accent-text);
     outline-offset: 2px;
-    opacity: 1;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .accent { transition: none; }
   }
 
+  /* Three quiet circles and one loud one. They were four unrelated glyphs at
+     four sizes before; now they are a set, held a little apart from the play
+     button so the eye reads "actions, then play". */
   .word-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 2px;
     flex-shrink: 0;
+  }
+
+  .word-actions .audio-button {
+    margin-left: 14px;
   }
 
   .icon-button {
     font-family: inherit;
-    font-size: 20px;
+    font-size: 19px;
     line-height: 1;
-    color: var(--text-color);
-    opacity: 0.4;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
     background: none;
     border: none;
-    padding: 8px;
-    border-radius: 8px;
+    border-radius: 50%;
     cursor: pointer;
-    transition: opacity 0.2s, color 0.2s;
+    transition: background-color 0.18s, color 0.18s;
   }
 
-  .icon-button:hover { opacity: 0.9; color: #a543e8; }
+  .icon-button:hover {
+    background: var(--background-search);
+    color: var(--accent-text);
+  }
 
-  .icon-button.is-on { opacity: 1; color: #a543e8; }
+  .icon-button.is-on { color: var(--accent-text); }
 
   .icon-button:focus-visible {
     outline: 2px solid #a543e8;
@@ -406,11 +426,12 @@ ul li::marker {
     opacity: 1;
   }
 
+  /* This was a shouted uppercase label in a colour of its own. It is a note
+     about the word, so it is set like one. */
   .frequency {
-    margin: 10px 0 0;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    margin: 12px 0 0;
+    font-size: 15px;
+    font-style: italic;
     color: var(--text-muted);
   }
 
@@ -418,19 +439,21 @@ ul li::marker {
   .frequency.is-rare { color: var(--accent-text); }
 
   .frequency-detail {
-    letter-spacing: 0;
-    text-transform: none;
+    font-style: normal;
+    font-size: 14px;
+    color: var(--text-muted);
   }
 
+  .related-section,
   .etymology-section {
-    margin-top: 26px;
+    margin-top: 44px;
   }
 
   .etymology-text {
-    margin: 6px 0 0;
-    font-size: 16px;
-    line-height: 27px;
-    opacity: 0.8;
+    margin: 10px 0 0;
+    font-size: 17px;
+    line-height: 30px;
+    color: var(--text-color);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -442,22 +465,40 @@ ul li::marker {
     .icon-button { font-size: 17px; padding: 6px; }
   }
 
+  /* It opens the list above it, so it sits in that list's own text column
+     rather than floating in from the left the way it used to. */
   .show-all {
     font-family: inherit;
-    font-size: 14px;
-    color: #a543e8;
+    font-size: 15px;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--text-muted);
     background: none;
     border: none;
     padding: 0;
-    margin: -24px 0 30px 42px;
+    margin: -18px 0 30px 60px;
     cursor: pointer;
     text-underline-offset: 4px;
+    transition: color 0.18s;
   }
 
-  .show-all:hover { text-decoration: underline; }
+  .show-all-mark {
+    font-size: 13px;
+    width: 17px;
+    height: 17px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    opacity: 0.8;
+  }
+
+  .show-all:hover { color: var(--accent-text); }
 
   .show-all:focus-visible {
-    outline: 2px solid #a543e8;
+    outline: 2px solid var(--accent-text);
     outline-offset: 3px;
     border-radius: 3px;
   }
@@ -469,39 +510,36 @@ ul li::marker {
   }
 
   /* One per definition, quiet until hovered — the definition is what matters. */
+  /* This used to be invisible until the definition was hovered, which on a
+     phone meant never, and on a desktop meant only by accident. A control
+     nobody can see is not a control. */
   .sense-button {
-    display: block;
+    /* flex, not inline-flex: it is a line of its own under the definition, not
+       a word at the end of it. */
+    display: flex;
+    width: fit-content;
+    align-items: baseline;
+    gap: 7px;
     font-family: inherit;
-    font-size: 12.5px;
-    letter-spacing: 0.04em;
-    color: var(--text-color);
-    opacity: 0;
+    font-size: 13.5px;
+    color: var(--text-muted);
     background: none;
     border: none;
-    padding: 4px 0 0;
+    padding: 8px 0 0;
     cursor: pointer;
-    transition: opacity 0.2s, color 0.2s;
+    transition: color 0.18s;
   }
 
-  .meanings--definition:hover .sense-button,
-  .sense-button:focus-visible,
-  .sense-button.is-chosen {
-    opacity: 0.6;
-  }
+  .sense-mark { font-size: 13px; }
 
-  .sense-button:hover { opacity: 1; color: #a543e8; }
+  .sense-button:hover { color: var(--accent-text); }
 
-  .sense-button.is-chosen { color: #a543e8; opacity: 1; }
+  .sense-button.is-chosen { color: var(--accent-text); }
 
   .sense-button:focus-visible {
-    outline: 2px solid #a543e8;
+    outline: 2px solid var(--accent-text);
     outline-offset: 3px;
     border-radius: 3px;
-  }
-
-  /* Touch has no hover, so the control is always legible there. */
-  @media (hover: none) {
-    .sense-button { opacity: 0.55; }
   }
 
   @media (prefers-reduced-motion: reduce) {

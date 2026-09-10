@@ -3,8 +3,9 @@
  * themselves are already kept in localStorage by the app, so this is only about
  * getting the page itself to load offline.
  *
- * Build assets live under /assets/ and carry a content hash, so they can be
- * cached indefinitely; the page itself cannot.
+ * Build assets live under /assets/ and carry a content hash, and the fonts
+ * under /fonts/ never change in place either, so both can be cached
+ * indefinitely; the page itself cannot.
  *
  * Strategy: network first for navigation (so a deploy is picked up straight
  * away), cache first for hashed build assets (which never change in place).
@@ -47,7 +48,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.includes('/assets/')) {
+  // Hashed build assets and the fonts beside them: both are safe to keep for
+  // ever, and without the fonts an offline page falls back to Georgia.
+  if (url.pathname.includes('/assets/') || url.pathname.includes('/fonts/')) {
     event.respondWith(
       caches.match(request).then(
         (hit) =>

@@ -18,19 +18,16 @@ body.dark {
 }
 
 .progress {
-  margin: 4px 0 0;
+  margin: 10px 0 2px;
   width: 100%;
   max-width: 420px;
 }
 
 .progress-caption {
-  font-size: 13px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-color);
-  opacity: 0.5;
+  font-size: 15px;
+  color: var(--text-muted);
   text-align: center;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .progress-rows {
@@ -44,16 +41,16 @@ body.dark {
 
 .progress-row {
   display: grid;
-  grid-template-columns: 62px 1fr 22px;
+  grid-template-columns: 68px 1fr 22px;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   line-height: normal;
 }
 
 .progress-label {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--text-muted);
   text-align: right;
 }
@@ -80,17 +77,17 @@ body.dark {
 .box-5 { background: var(--box-5); }
 
 .progress-count {
-  font-size: 13px;
-  color: var(--text-color);
-  opacity: 0.7;
+  font-size: 15px;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
 .progress-note {
-  margin: 14px 0 0;
-  font-size: 12px;
-  line-height: 1.5;
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--text-muted);
   text-align: center;
+  max-width: 34em;
 }

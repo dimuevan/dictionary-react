@@ -107,20 +107,25 @@ service worker κάνει cache τον φάκελο που το build παράγ
 ## 5. Tests
 
 ```bash
-npm test            # 64 unit tests, μία φορά
+npm test            # 64 unit tests σε έξι αρχεία κατά θέμα
 npm run test:watch  # watch mode
-npm run e2e         # 28 έλεγχοι σε πραγματικό browser, desktop και κινητό
+npm run e2e         # 34 έλεγχοι σε πραγματικό browser, desktop και κινητό
 npm run lint        # ESLint, με τους κανόνες των React hooks
 npm run lint:css    # τα stylesheets
 npm run check:build # ότι το build δουλεύει στον υποφάκελο του server
+npm run check:perf  # Lighthouse πάνω στο ίδιο build, με όρια
+npm run card        # ξαναφτιάχνει την εικόνα κοινοποίησης
 ```
 
-Το `src/App.test.jsx` κρατάει καταγεγραμμένη κάθε διαδρομή που έχει σπάσει
-κάποια στιγμή. Οι browser έλεγχοι πιάνουν αυτά που τα unit tests δεν βλέπουν:
+Τα tests είναι χωρισμένα κατά θέμα — `lookup`, `failures`, `memory`, `study`,
+`extras`, `navigation` — και κρατούν καταγεγραμμένη κάθε διαδρομή που έχει
+σπάσει κάποια στιγμή. Οι browser έλεγχοι πιάνουν αυτά που τα unit tests δεν βλέπουν:
 layout που ξεχειλίζει στο κινητό, ηχητικό αρχείο που δεν κατεβαίνει, τη σελίδα
 να ανοίγει με το δίκτυο κατεβασμένο, και το θέμα να έχει ήδη μπει πριν
 προλάβει να φορτώσει η εφαρμογή. Μαζί τους τρέχει και ένας έλεγχος
-προσβασιμότητας με `axe` σε κάθε οθόνη, σε φωτεινό και σκοτεινό θέμα.
+προσβασιμότητας με `axe` σε κάθε οθόνη, σε φωτεινό και σκοτεινό θέμα, και ένας
+που περπατά τη σελίδα **μόνο με το Tab**: σειρά εστίασης, ορατός δακτύλιος,
+καμία παγίδα.
 
 Και τα δύο τρέχουν αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`.
 Ξεχωριστά, ένα ημερήσιο job (`.github/workflows/api-contract.yml`) χτυπά τις
@@ -165,12 +170,14 @@ src/
 ├── StudyCards.jsx      # οι κάρτες επανάληψης
 ├── StudyProgress.jsx   # η κατανομή στα κουτιά
 ├── RecentWords.jsx     # πρόσφατες και αποθηκευμένες λέξεις
-├── App.test.jsx        # τα unit tests
+├── testHelpers.jsx     # ο κοινός εξοπλισμός των tests
+├── *.test.jsx          # τα unit tests, ανά θέμα
 └── …                   # Header, ErrorBoundary, ResultSkeleton, icons, stylesheets
 
 e2e/                    # οι έλεγχοι σε πραγματικό browser
 scripts/                # check-apis.mjs, check-build.mjs
 public/service-worker.js # το app shell που ανοίγει χωρίς δίκτυο
+public/fonts/           # η Lora, από εδώ και όχι από το Google Fonts
 ```
 
 **Πλοήγηση:** η λέξη ζει στο URL ως `?w=<word>`. Κάθε αναζήτηση, κλικ σε

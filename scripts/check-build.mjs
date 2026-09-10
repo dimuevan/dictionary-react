@@ -71,14 +71,25 @@ absolute.forEach((path) => {
 const flat = html.replace(/\s+/g, ' ');
 const socialCard = (flat.match(/property="og:image" content="([^"]+)"/) || [])[1];
 
+// The font used to come from Google Fonts through an @import, which is the
+// slowest possible way to load one and a third-party request besides.
+if (flat.includes('fonts.googleapis.com') || flat.includes('fonts.gstatic.com')) {
+  note('index.html still reaches out to Google Fonts');
+}
+
+['lora-latin.woff2', 'lora-latin-italic.woff2'].forEach((font) => {
+  if (!existsSync(join(BUILD, 'fonts', font))) note(`fonts/${font} is missing from ${BUILD}/`);
+});
+
 if (!socialCard) note('index.html declares no og:image');
 else if (!/^https?:\/\//.test(socialCard)) {
   note(`og:image "${socialCard}" is relative; link previews need an absolute URL`);
 }
 
-// Which directory the hashed assets actually landed in, per the HTML.
+// Which directory the hashed bundles actually landed in, per the HTML. Only
+// the script and the stylesheet say: the fonts live in a directory of their own.
 const assetDir = absolute
-  .filter((path) => path.startsWith(base))
+  .filter((path) => path.startsWith(base) && /\.(js|css)$/.test(path))
   .map((path) => path.slice(base.length).split('/')[0])
   .find((segment) => segment && !segment.includes('.'));
 

@@ -30,7 +30,10 @@ export default defineConfig({
     // assignment before the first one would not do.
     env: { VITE_BASE: '/' },
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: !process.env.CI,
+    // Never reuse: a server left running from an earlier run serves the build
+    // from an earlier run, and the suite then passes on code that is no longer
+    // there. It cost an hour once; the rebuild costs two seconds.
+    reuseExistingServer: false,
     timeout: 180000,
   },
 });

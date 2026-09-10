@@ -39,6 +39,10 @@ jobs:
       - name: Check the build would work where it is deployed
         run: npm run check:build
 
+      # Bytes are a proxy for speed; this measures the thing itself.
+      - name: Check the page is still fast
+        run: npm run check:perf
+
   browser:
     name: Browser checks
     runs-on: ubuntu-latest

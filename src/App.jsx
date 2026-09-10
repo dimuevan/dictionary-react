@@ -106,7 +106,8 @@ const App = () => {
         onLanguageChange={changeLanguage}
       />
 
-      <div className='searchWrapper'>
+      {/* A landmark, so a screen reader can skip the header and start reading. */}
+      <main className='searchWrapper'>
         <Search onSearch={search} term={request.term} lang={request.lang} />
 
         {status === 'idle' && (
@@ -165,7 +166,7 @@ const App = () => {
             )}
           </div>
         )}
-      </div>
+      </main>
 
       {/* Always rendered so screen readers announce the message when it appears */}
       <p className={classNames} role="status" aria-live="polite">

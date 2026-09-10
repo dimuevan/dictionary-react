@@ -39,15 +39,17 @@ seen before comes back whole without asking anyone.
 each from its own dictionary and its own Wiktionary.
 
 **Is usable.** Every screen is scanned by axe on every push, in both themes and
-at both widths, against the WCAG A and AA rules. The first run found twenty-four
-real failures — grey text that looked deliberate and could not be read.
+at both widths, against the WCAG A and AA rules — and separately walked with
+nothing but the Tab key, which is the half a scanner cannot do. Lighthouse gives
+it 100 for performance, accessibility, best practices and SEO, on every push.
 
 **Behaves like a tool.** The word lives in the address bar, so definitions are
 shareable and the back button works. `/` jumps to the search box, `Escape` clears
 it, arrow keys walk the suggestions. Light and dark, three typefaces, and a
 service worker so it opens offline — with the
 theme applied before the first paint, so choosing dark does not mean a white
-flash on every load.
+flash on every load, and the typeface served from this origin rather than
+fetched from Google on every visit.
 
 ---
 
@@ -62,12 +64,13 @@ Full instructions, including the production build and its one trap, are in
 [RUN.md](RUN.md).
 
 ```bash
-npm test            # 64 unit tests
-npm run e2e         # 28 browser checks, desktop and phone
+npm test            # 64 unit tests, in six files by subject
+npm run e2e         # 34 browser checks, desktop and phone
 npm run lint        # ESLint, with the React hook rules
 npm run lint:css    # the stylesheets, for rules that quietly cancel each other
 npm run build       # production build for the hosting subdirectory
 npm run check:build # that the build works where it is deployed
+npm run check:perf  # Lighthouse against that build, with a budget
 npm run check:apis  # the shapes the three services are expected to return
 npm run card        # redraws the link-preview image
 ```
@@ -92,6 +95,7 @@ src/
 ├── etymology.js        # the Origin section, read out of a Wiktionary page
 ├── wordCache.js        # saved entries, which double as the history
 ├── extrasCache.js      # and the origins, frequencies and rhymes beside them
+├── testHelpers.jsx     # the harness the six test files share
 ├── favourites.js       # starred words, CSV and Anki export
 ├── studySchedule.js    # Leitner boxes
 ├── backup.js           # JSON export and merge-on-restore

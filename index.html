@@ -36,6 +36,15 @@
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="apple-touch-icon" href="/logo192.png" />
     <link rel="manifest" href="/manifest.json" />
+    <!-- The one font file every first paint needs, fetched in parallel with the
+         stylesheet instead of after it. -->
+    <link
+      rel="preload"
+      href="/fonts/lora-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
     <title>Dictionearch by iamevandimu.com</title>
   </head>
   <body>
