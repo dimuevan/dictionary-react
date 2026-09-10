@@ -28,6 +28,10 @@ const entry = (overrides = {}) => ({
 const mockJson = (payload, { ok = true, status = 200 } = {}) =>
   Promise.resolve({ ok, status, json: () => Promise.resolve(payload) });
 
+/** Only the calls to the dictionary itself, ignoring the optional extras. */
+const dictionaryCalls = () =>
+  global.fetch.mock.calls.filter(([url]) => String(url).includes('dictionaryapi.dev'));
+
 const search = (word) => {
   fireEvent.change(screen.getByLabelText('Search for a word'), { target: { value: word } });
   fireEvent.submit(screen.getByLabelText('Search for a word').closest('form'));
@@ -130,7 +134,11 @@ test('searching the same word twice sends a second request', async () => {
   await screen.findByRole('heading', { name: 'keyboard' });
 
   search('cat');
-  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+  // Count only the dictionary: the extras (frequency, etymology) have their own
+  // requests and are not what this test is about.
+  await waitFor(() =>
+    expect(dictionaryCalls()).toHaveLength(2)
+  );
 });
 
 test('encodes the search term into the request URL', async () => {
@@ -258,7 +266,9 @@ test('keeps a saved entry on screen when a refresh 404s, but never fetches one',
   expect(screen.queryByText(/No results for/)).not.toBeInTheDocument();
   // Nothing stale is advertised, and the fallback is never consulted for a 404.
   expect(screen.queryByText(/this is the copy saved/i)).not.toBeInTheDocument();
-  expect(global.fetch.mock.calls.every(([url]) => !String(url).includes('wiktionary'))).toBe(true);
+  expect(
+    global.fetch.mock.calls.every(([url]) => !/wiktionary\.org\/api\/rest_v1/.test(String(url)))
+  ).toBe(true);
 });
 
 test('shows no results for an unknown word it has never seen', async () => {
@@ -556,4 +566,161 @@ test('the word of the day is stable within a day and changes across days', () =>
 
   expect(wordOfTheDay(monday)).toBe(wordOfTheDay(mondayNight));
   expect(wordOfTheDay(monday)).not.toBe(wordOfTheDay(tuesday));
+});
+
+// ---------------------------------------------------------------- new features
+
+test('saves a word, offers it under Saved, and lets it be removed', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Save this word' }));
+  expect(screen.getByRole('button', { name: 'Remove from saved words' })).toBeInTheDocument();
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
+
+  fireEvent.click(screen.getByRole('button', { name: 'Remove keyboard' }));
+  expect(screen.getByText(/Star a word while reading it/)).toBeInTheDocument();
+});
+
+test('copies a shareable link for the word on screen', async () => {
+  const writeText = jest.fn(() => Promise.resolve());
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  fireEvent.click(screen.getByRole('button', { name: 'Copy link to this word' }));
+  await waitFor(() => expect(writeText).toHaveBeenCalled());
+  expect(writeText.mock.calls[0][0]).toContain('?w=keyboard');
+});
+
+test('reads a word in another language, and says so in the address bar', async () => {
+  render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+
+  fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'es' } });
+
+  await waitFor(() =>
+    expect(dictionaryCalls().some(([url]) => String(url).includes('/entries/es/'))).toBe(true)
+  );
+  expect(window.location.search).toContain('l=es');
+});
+
+test('keeps each language its own entry in the saved words', async () => {
+  window.history.replaceState({}, '', '/?w=casa&l=es');
+  render(<App />);
+
+  await screen.findByRole('heading', { name: 'keyboard' });
+  expect(dictionaryCalls()[0][0]).toContain('/entries/es/casa');
+  // English-only extras stay out of the way in another language.
+  expect(global.fetch.mock.calls.every(([url]) => !String(url).includes('datamuse'))).toBe(true);
+});
+
+test('shows how common a word is when the frequency service answers', async () => {
+  global.fetch = jest.fn((url) => {
+    if (String(url).includes('datamuse.com')) {
+      return mockJson([{ word: 'keyboard', tags: ['n', 'f:12.5'] }]);
+    }
+    return mockJson([entry()]);
+  });
+
+  render(<App />);
+  search('keyboard');
+
+  expect(await screen.findByText('common', { exact: false })).toBeInTheDocument();
+});
+
+test('offers completions while typing, and Escape closes them', async () => {
+  global.fetch = jest.fn((url) =>
+    String(url).includes('datamuse.com')
+      ? mockJson([{ word: 'keyboard' }, { word: 'keyboardist' }])
+      : mockJson([entry()])
+  );
+
+  render(<App />);
+  const input = screen.getByLabelText('Search for a word');
+  fireEvent.change(input, { target: { value: 'keyb' } });
+
+  const option = await screen.findByRole('button', { name: 'keyboardist' }, { timeout: 3000 });
+  fireEvent.keyDown(window, { key: 'Escape' });
+  await waitFor(() => expect(option).not.toBeInTheDocument());
+});
+
+test('choosing a completion runs that search', async () => {
+  global.fetch = jest.fn((url) =>
+    String(url).includes('datamuse.com')
+      ? mockJson([{ word: 'keyboardist' }])
+      : mockJson([entry()])
+  );
+
+  render(<App />);
+  fireEvent.change(screen.getByLabelText('Search for a word'), { target: { value: 'keyb' } });
+
+  fireEvent.click(await screen.findByRole('button', { name: 'keyboardist' }, { timeout: 3000 }));
+  await waitFor(() => expect(window.location.search).toBe('?w=keyboardist'));
+});
+
+test('shows the origin of a word when Wiktionary has one', async () => {
+  global.fetch = jest.fn((url) => {
+    if (String(url).includes('api.php')) {
+      return mockJson({
+        parse: {
+          text:
+            '<h2>English</h2><h3>Etymology</h3><p>From Middle English <i>keye</i> plus board.</p>' +
+            '<h3>Noun</h3><p>Not the etymology.</p>',
+        },
+      });
+    }
+    return mockJson([entry()]);
+  });
+
+  render(<App />);
+  search('keyboard');
+
+  expect(
+    await screen.findByText('From Middle English keye plus board.')
+  ).toBeInTheDocument();
+  expect(screen.getByText('Origin')).toBeInTheDocument();
+});
+
+test('says nothing about origin when the page has no etymology section', async () => {
+  global.fetch = jest.fn((url) =>
+    String(url).includes('api.php')
+      ? mockJson({ parse: { text: '<h2>English</h2><h3>Noun</h3><p>Only a definition.</p>' } })
+      : mockJson([entry()])
+  );
+
+  render(<App />);
+  search('keyboard');
+
+  await screen.findByRole('heading', { name: 'keyboard' });
+  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+  expect(screen.queryByText('Origin')).not.toBeInTheDocument();
+});
+
+test('study cards ask for the word behind a definition', async () => {
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  fireEvent.click(screen.getByRole('button', { name: 'Save this word' }));
+  unmount();
+
+  window.history.replaceState({}, '', '/');
+  render(<App />);
+  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Study' }));
+
+  // The definition is shown first; the word is the answer.
+  expect(screen.getByText('A set of keys.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'keyboard' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Show the word' }));
+  expect(screen.getByRole('button', { name: 'keyboard' })).toBeInTheDocument();
 });

@@ -2,9 +2,11 @@ import './Header.css'; // Assuming you have a CSS file for styling
 
 import { ReactComponent as MoonIcon } from './images/icons/moon.svg';
 import React from 'react';
+
+import { LANGUAGES } from './languages';
 import { ReactComponent as SunIcon } from './images/icons/sun.svg';
 
-const Header = ({ onThemeToggle, theme, font, onFontChange }) => {
+const Header = ({ onThemeToggle, theme, font, onFontChange, lang, onLanguageChange }) => {
   return (
     <header className="header">
       <a href={`${process.env.PUBLIC_URL}/`} className="logo--link">
@@ -16,6 +18,21 @@ const Header = ({ onThemeToggle, theme, font, onFontChange }) => {
 
 
       <div className="header-controls">
+        <label className="font-picker">
+          <span className="visually-hidden">Language</span>
+          <select
+            className="font-select"
+            value={lang}
+            onChange={(event) => onLanguageChange(event.target.value)}
+          >
+            {LANGUAGES.map((language) => (
+              <option key={language.code} value={language.code}>
+                {language.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label className="font-picker">
           <span className="visually-hidden">Typeface</span>
           <select

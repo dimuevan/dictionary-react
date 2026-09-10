@@ -2,7 +2,7 @@ import './App.css'; // Your main CSS file
 
 import React, { useEffect, useState } from 'react';
 
-import { readTermFromUrl, writeTermToUrl } from './urlTerm';
+import { readRequestFromUrl, writeRequestToUrl } from './urlTerm';
 
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
@@ -11,7 +11,8 @@ import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
 import useDictionary, { resetPrimaryBreaker } from './useDictionary';
-import { fetchSuggestions } from './suggestions';
+import { fetchSuggestions } from './datamuse';
+import { DEFAULT_LANGUAGE } from './languages';
 import { wordOfTheDay } from './wordOfTheDay';
 
 const THEME_KEY = 'dictionearch-theme';
@@ -91,7 +92,7 @@ const App = () => {
   const [suggestions, setSuggestions] = useState([]);
   const daily = wordOfTheDay();
   // The address bar is the source of truth for which word is on screen.
-  const [request, setRequest] = useState(() => ({ term: readTermFromUrl(), nonce: 0 }));
+  const [request, setRequest] = useState(() => ({ ...readRequestFromUrl(), nonce: 0 }));
   const [showErrorClass, setShowErrorClass] = useState(false);
 
   const { status, data: wordData, error, cachedAt, source } = useDictionary(request);
@@ -101,9 +102,20 @@ const App = () => {
   };
 
   // A new nonce on every submit lets the same word be searched twice in a row.
-  const handleSearch = (query) => {
-    writeTermToUrl(query.trim());
-    setRequest((current) => ({ term: query, nonce: current.nonce + 1 }));
+  const handleSearch = (query, lang) => {
+    setRequest((current) => {
+      const nextLang = lang || current.lang;
+      writeRequestToUrl(query.trim(), nextLang);
+      return { term: query, lang: nextLang, nonce: current.nonce + 1 };
+    });
+  };
+
+  // Changing language re-asks for the same word in the new dictionary.
+  const handleLanguageChange = (nextLang) => {
+    setRequest((current) => {
+      writeRequestToUrl(current.term.trim(), nextLang);
+      return { ...current, lang: nextLang, nonce: current.nonce + 1 };
+    });
   };
 
   // Retrying is the same request with a fresh nonce. An explicit retry is also
@@ -116,7 +128,7 @@ const App = () => {
   // Back and forward move between words instead of leaving the app.
   useEffect(() => {
     const handlePopState = () => {
-      setRequest((current) => ({ term: readTermFromUrl(), nonce: current.nonce + 1 }));
+      setRequest((current) => ({ ...readRequestFromUrl(), nonce: current.nonce + 1 }));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -137,7 +149,9 @@ const App = () => {
   // A misspelling should offer a way forward rather than a dead end.
   useEffect(() => {
     setSuggestions([]);
-    if (!error || error.kind !== 'not-found') return undefined;
+    if (!error || error.kind !== 'not-found' || request.lang !== DEFAULT_LANGUAGE) {
+      return undefined;
+    }
 
     let current = true;
     const term = request.term.trim();
@@ -148,7 +162,7 @@ const App = () => {
     return () => {
       current = false;
     };
-  }, [error, request.term, request.nonce]);
+  }, [error, request.term, request.lang, request.nonce]);
 
   // Show the toast, then slide it away. Keyed on the nonce too, so two searches
   // that fail the same way still each get their own toast.
@@ -177,9 +191,11 @@ const App = () => {
         theme={theme}
         font={font}
         onFontChange={setFont}
+        lang={request.lang}
+        onLanguageChange={handleLanguageChange}
       />
       <div className='searchWrapper'>
-        <Search onSearch={handleSearch} term={request.term} />
+        <Search onSearch={handleSearch} term={request.term} lang={request.lang} />
 
         {status === 'idle' && (
           <>
@@ -217,7 +233,11 @@ const App = () => {
                 </button>
               </div>
             )}
-            <WordDisplay wordData={wordData} onSelectWord={handleSearch} />
+            <WordDisplay
+              wordData={wordData}
+              onSelectWord={handleSearch}
+              lang={request.lang}
+            />
           </ErrorBoundary>
         )}
         {status === 'error' && (

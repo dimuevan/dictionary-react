@@ -21,5 +21,7 @@
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#a543e8",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "scope": ".",
+  "description": "Look up any English word: definitions, examples, synonyms and audio pronunciation."
 }

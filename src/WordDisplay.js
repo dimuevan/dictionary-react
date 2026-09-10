@@ -1,6 +1,12 @@
 import './WordDisplay.css'; // CSS file for styling
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
+import { DEFAULT_LANGUAGE } from './languages';
+import { fetchEtymology } from './etymology';
+import { fetchFrequency } from './datamuse';
+import { isFavourite, toggleFavourite } from './favourites';
+import { shareUrlFor } from './urlTerm';
 
 /**
  * Flattens every entry into one group per part of speech, in the order the API
@@ -87,9 +93,61 @@ const collectPronunciations = (phonetics) => {
     });
 };
 
-const WordDisplay = ({ wordData, onSelectWord = () => {} }) => {
+const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAGE }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [selected, setSelected] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const [frequency, setFrequency] = useState(null);
+  const [etymology, setEtymology] = useState(null);
+
+  const headword = wordData.data[0].word;
+  const [starred, setStarred] = useState(() => isFavourite(headword, lang));
+
+  useEffect(() => {
+    setStarred(isFavourite(headword, lang));
+    setCopied(false);
+    setSelected(0);
+  }, [headword, lang]);
+
+  // Two extras that enrich an entry without being part of it: neither blocks
+  // the definition, and neither shows anything when it cannot be had.
+  useEffect(() => {
+    setFrequency(null);
+    if (lang !== DEFAULT_LANGUAGE) return undefined;
+
+    const controller = new AbortController();
+    fetchFrequency(headword, controller.signal).then((result) => {
+      if (!controller.signal.aborted) setFrequency(result);
+    });
+
+    return () => controller.abort();
+  }, [headword, lang]);
+
+  useEffect(() => {
+    setEtymology(null);
+    const controller = new AbortController();
+
+    fetchEtymology(headword, lang, controller.signal).then((text) => {
+      if (!controller.signal.aborted) setEtymology(text);
+    });
+
+    return () => controller.abort();
+  }, [headword, lang]);
+
+  const handleStar = () => {
+    setStarred(toggleFavourite(headword, lang));
+  };
+
+  const handleCopy = async () => {
+    const url = shareUrlFor(headword, lang);
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      // clipboard permission denied or unavailable; nothing else to do
+    }
+  };
 
   // Function to play audio pronunciation
   const playAudio = (audioUrl) => {
@@ -134,6 +192,15 @@ const WordDisplay = ({ wordData, onSelectWord = () => {} }) => {
             </div>
           )}
 
+          {frequency && (
+            <p className={`frequency is-${frequency.label}`}>
+              {frequency.label}
+              <span className="frequency-detail">
+                {' '}· {frequency.perMillion.toFixed(2)} per million words
+              </span>
+            </p>
+          )}
+
           {pronunciations.length > 1 && (
             <div className="accents" role="group" aria-label="Pronunciations">
               {pronunciations.map((option, index) => (
@@ -152,16 +219,37 @@ const WordDisplay = ({ wordData, onSelectWord = () => {} }) => {
         </div>
 
         {/* Only rendered when a recording actually exists */}
-        {pronunciation && (
+        <div className="word-actions">
           <button
             type="button"
-            className={`audio-button ${isPlaying ? 'is-playing' : ''}`}
-            onClick={() => play(pronunciations.indexOf(pronunciation))}
-            aria-label="Play pronunciation"
+            className={`icon-button ${starred ? 'is-on' : ''}`}
+            onClick={handleStar}
+            aria-pressed={starred}
+            aria-label={starred ? 'Remove from saved words' : 'Save this word'}
           >
-            <span className="play-icon" aria-hidden="true"></span>
+            {starred ? '★' : '☆'}
           </button>
-        )}
+
+          <button
+            type="button"
+            className="icon-button"
+            onClick={handleCopy}
+            aria-label="Copy link to this word"
+          >
+            {copied ? '✓' : '⧉'}
+          </button>
+
+          {pronunciation && (
+            <button
+              type="button"
+              className={`audio-button ${isPlaying ? 'is-playing' : ''}`}
+              onClick={() => play(pronunciations.indexOf(pronunciation))}
+              aria-label="Play pronunciation"
+            >
+              <span className="play-icon" aria-hidden="true"></span>
+            </button>
+          )}
+        </div>
       </div>
 
       {meaningGroups.map((group) => (
@@ -199,6 +287,13 @@ const WordDisplay = ({ wordData, onSelectWord = () => {} }) => {
           )}
         </div>
       ))}
+
+      {etymology && (
+        <div className="etymology-section">
+          <p className='subtitle'>Origin</p>
+          <p className="etymology-text">{etymology}</p>
+        </div>
+      )}
 
       {/* Display source if available */}
       {wordData.sourceUrls && wordData.sourceUrls.length > 0 && (

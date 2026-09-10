@@ -2,8 +2,9 @@ import { readCachedWord, writeCachedWord } from './wordCache';
 import { useEffect, useState } from 'react';
 
 import { fetchWiktionary } from './wiktionary';
+import { DEFAULT_LANGUAGE } from './languages';
 
-const API_URL = 'https://api.dictionaryapi.dev/api/v2/entries/en';
+const API_URL = 'https://api.dictionaryapi.dev/api/v2/entries';
 
 // A stalled request is worse than a failed one: the reader waits with nothing on
 // screen. Cloudflare takes ~15s to admit a 522, so cap it well below that and
@@ -76,8 +77,8 @@ const withDeadline = (outerSignal, ms) => {
   };
 };
 
-const requestWord = async (term, signal) => {
-  const response = await fetch(`${API_URL}/${encodeURIComponent(term)}`, { signal });
+const requestWord = async (term, lang, signal) => {
+  const response = await fetch(`${API_URL}/${lang}/${encodeURIComponent(term)}`, { signal });
 
   if (!response.ok) {
     throw response.status === 404
@@ -111,6 +112,7 @@ const useDictionary = (request) => {
 
   useEffect(() => {
     const term = request.term.trim().toLowerCase();
+    const lang = request.lang || DEFAULT_LANGUAGE;
     if (!term) {
       setState(IDLE);
       return undefined;
@@ -122,7 +124,7 @@ const useDictionary = (request) => {
 
     // Show what we already have straight away; the network then confirms or
     // corrects it, instead of the reader watching a skeleton for a word we hold.
-    const cached = readCachedWord(term);
+    const cached = readCachedWord(term, lang);
     setState(
       cached
         ? {
@@ -155,8 +157,8 @@ const useDictionary = (request) => {
       if (Date.now() >= primaryDownUntil) {
         const deadline = withDeadline(signal, PRIMARY_TIMEOUT_MS);
         try {
-          const payload = await requestWord(term, deadline.signal);
-          writeCachedWord(term, payload);
+          const payload = await requestWord(term, lang, deadline.signal);
+          writeCachedWord(term, payload, lang);
           primaryDownUntil = 0;
           setState({
             status: 'success',
@@ -201,9 +203,9 @@ const useDictionary = (request) => {
       // unreachable, ask Wiktionary itself rather than give up.
       const deadline = withDeadline(signal, FALLBACK_TIMEOUT_MS);
       try {
-        const fallback = await fetchWiktionary(term, deadline.signal);
+        const fallback = await fetchWiktionary(term, lang, deadline.signal);
         if (fallback) {
-          writeCachedWord(term, fallback);
+          writeCachedWord(term, fallback, lang);
           setState({
             status: 'success',
             data: fallback,

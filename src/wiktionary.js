@@ -1,4 +1,5 @@
-const WIKTIONARY_URL = 'https://en.wiktionary.org/api/rest_v1/page/definition';
+const wiktionaryUrl = (lang) =>
+  `https://${lang}.wiktionary.org/api/rest_v1/page/definition`;
 
 /**
  * Wiktionary returns definitions as HTML fragments (they contain links to other
@@ -35,10 +36,12 @@ const firstExample = (definition) => {
  * Wiktionary carries no pronunciation audio at this endpoint, so `phonetics`
  * is deliberately empty and the play button simply does not render.
  */
-export const normalizeWiktionary = (payload, term) => {
-  const englishGroups = payload && Array.isArray(payload.en) ? payload.en : [];
+export const normalizeWiktionary = (payload, term, lang = 'en') => {
+  // The payload is keyed by language; only the section matching the dictionary
+  // being read is ours.
+  const groups = payload && Array.isArray(payload[lang]) ? payload[lang] : [];
 
-  const meanings = englishGroups
+  const meanings = groups
     .map((group) => ({
       partOfSpeech: String(group.partOfSpeech || '').toLowerCase(),
       definitions: (group.definitions || [])
@@ -56,7 +59,7 @@ export const normalizeWiktionary = (payload, term) => {
 
   return {
     data: [{ word: term, phonetics: [], meanings }],
-    sourceUrls: [`https://en.wiktionary.org/wiki/${encodeURIComponent(term)}`],
+    sourceUrls: [`https://${lang}.wiktionary.org/wiki/${encodeURIComponent(term)}`],
   };
 };
 
@@ -65,11 +68,14 @@ export const normalizeWiktionary = (payload, term) => {
  * Wiktionary; this asks Wiktionary directly, on Wikimedia's own infrastructure.
  * No API key, and the endpoint sends permissive CORS headers.
  */
-export const fetchWiktionary = async (term, signal) => {
-  const response = await fetch(`${WIKTIONARY_URL}/${encodeURIComponent(term)}`, { signal });
+export const fetchWiktionary = async (term, lang = 'en', signal) => {
+  const response = await fetch(
+    `${wiktionaryUrl(lang)}/${encodeURIComponent(term)}`,
+    { signal }
+  );
 
   if (!response.ok) return null;
 
   const payload = await response.json();
-  return normalizeWiktionary(payload, term);
+  return normalizeWiktionary(payload, term, lang);
 };

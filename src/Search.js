@@ -2,8 +2,13 @@ import './Search.css'; // Make sure to create a corresponding CSS file for styli
 
 import React, { useEffect, useRef, useState } from 'react';
 
-const Search = ({ onSearch, term = '' }) => {
+import { DEFAULT_LANGUAGE } from './languages';
+import { fetchCompletions } from './datamuse';
+
+const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
   const [input, setInput] = useState(term);
+  const [completions, setCompletions] = useState([]);
+  const [dismissed, setDismissed] = useState(true);
 
   // The word can also be chosen away from this box — from the address bar, a
   // recent chip, or a synonym — and the box should show what is on screen.
@@ -13,6 +18,35 @@ const Search = ({ onSearch, term = '' }) => {
 
   const handleInputChange = (event) => {
     setInput(event.target.value);
+    setDismissed(false);
+  };
+
+  // Completions are a convenience, not the search: they are debounced, cancelled
+  // when the next keystroke arrives, English-only, and silent when unavailable.
+  useEffect(() => {
+    const typed = input.trim();
+    if (dismissed || lang !== DEFAULT_LANGUAGE || typed.length < 2 || typed === term.trim()) {
+      setCompletions([]);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetchCompletions(typed.toLowerCase(), controller.signal).then((words) => {
+        if (!controller.signal.aborted) setCompletions(words);
+      });
+    }, 200);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [input, lang, term, dismissed]);
+
+  const choose = (word) => {
+    setCompletions([]);
+    setDismissed(true);
+    onSearch(word);
   };
   
   // Create a reference to the input element
@@ -42,7 +76,15 @@ const Search = ({ onSearch, term = '' }) => {
       }
 
       if (event.key === 'Escape' && active === inputRef.current) {
-        setInput('');
+        // Escape closes the suggestions first, and only then empties the box.
+        setCompletions((current) => {
+          if (current.length) {
+            setDismissed(true);
+            return [];
+          }
+          setInput('');
+          return current;
+        });
         inputRef.current?.focus();
       }
     };
@@ -54,6 +96,8 @@ const Search = ({ onSearch, term = '' }) => {
   const handleSubmit = (event) => {
     event.preventDefault(); // Prevent the default form submit action
     if (input.trim()) { // Check if the input is not just whitespace
+      setCompletions([]);
+      setDismissed(true);
       onSearch(input);
     }
   };
@@ -75,6 +119,17 @@ const Search = ({ onSearch, term = '' }) => {
             <path d="M18.4429 18.9772L22.4762 23" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
+      {completions.length > 0 && (
+        <ul className="completions" role="listbox" aria-label="Suggestions">
+          {completions.map((word) => (
+            <li key={word}>
+              <button type="button" className="completion" onClick={() => choose(word)}>
+                {word}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </form>
   );
 };

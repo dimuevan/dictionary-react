@@ -405,3 +405,72 @@ ul li::marker {
   @media (prefers-reduced-motion: reduce) {
     .accent { transition: none; }
   }
+
+  .word-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .icon-button {
+    font-family: inherit;
+    font-size: 20px;
+    line-height: 1;
+    color: var(--text-color);
+    opacity: 0.4;
+    background: none;
+    border: none;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s, color 0.2s;
+  }
+
+  .icon-button:hover { opacity: 0.9; color: #a543e8; }
+
+  .icon-button.is-on { opacity: 1; color: #a543e8; }
+
+  .icon-button:focus-visible {
+    outline: 2px solid #a543e8;
+    outline-offset: 2px;
+    opacity: 1;
+  }
+
+  .frequency {
+    margin: 10px 0 0;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-color);
+    opacity: 0.5;
+  }
+
+  .frequency.is-common { color: #2f7d5c; opacity: 0.9; }
+  .frequency.is-rare { color: #a543e8; opacity: 0.9; }
+
+  .frequency-detail {
+    letter-spacing: 0;
+    text-transform: none;
+    opacity: 0.7;
+  }
+
+  .etymology-section {
+    margin-top: 26px;
+  }
+
+  .etymology-text {
+    margin: 6px 0 0;
+    font-size: 16px;
+    line-height: 27px;
+    opacity: 0.8;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .icon-button { transition: none; }
+  }
+
+  @media (max-width: 768px) {
+    .word-actions { gap: 4px; }
+    .icon-button { font-size: 17px; padding: 6px; }
+  }

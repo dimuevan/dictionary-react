@@ -83,3 +83,91 @@
     transition: none;
   }
 }
+
+.recent-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.recent-tab {
+  font-family: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color);
+  opacity: 0.4;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 4px 10px 6px;
+  cursor: pointer;
+  transition: opacity 0.2s, border-color 0.2s;
+}
+
+.recent-tab:hover { opacity: 0.75; }
+
+.recent-tab.is-active {
+  opacity: 1;
+  border-bottom-color: #a543e8;
+}
+
+.recent-tab:focus-visible {
+  outline: 2px solid #a543e8;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.recent-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.chip-lang {
+  margin-left: 7px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.chip-remove {
+  font-family: inherit;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--text-color);
+  opacity: 0.35;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+}
+
+.chip-remove:hover { opacity: 0.9; color: #a543e8; }
+
+.chip-remove:focus-visible {
+  outline: 2px solid #a543e8;
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.recent-empty {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-color);
+  opacity: 0.45;
+  text-align: center;
+  max-width: 32em;
+}
+
+.recent-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recent-tab { transition: none; }
+}
