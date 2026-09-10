@@ -2,8 +2,11 @@ import './App.css'; // Your main CSS file
 
 import React, { useEffect, useState } from 'react';
 
+import { readTermFromUrl, writeTermToUrl } from './urlTerm';
+
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
+import RecentWords from './RecentWords';
 import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
@@ -70,7 +73,8 @@ const explain = (error, term) => {
 
 const App = () => {
   const [theme, setTheme] = useState(getInitialTheme);
-  const [request, setRequest] = useState({ term: '', nonce: 0 });
+  // The address bar is the source of truth for which word is on screen.
+  const [request, setRequest] = useState(() => ({ term: readTermFromUrl(), nonce: 0 }));
   const [showErrorClass, setShowErrorClass] = useState(false);
 
   const { status, data: wordData, error, cachedAt, source } = useDictionary(request);
@@ -81,6 +85,7 @@ const App = () => {
 
   // A new nonce on every submit lets the same word be searched twice in a row.
   const handleSearch = (query) => {
+    writeTermToUrl(query.trim());
     setRequest((current) => ({ term: query, nonce: current.nonce + 1 }));
   };
 
@@ -90,6 +95,16 @@ const App = () => {
     resetPrimaryBreaker();
     setRequest((current) => ({ ...current, nonce: current.nonce + 1 }));
   };
+
+  // Back and forward move between words instead of leaving the app.
+  useEffect(() => {
+    const handlePopState = () => {
+      setRequest((current) => ({ term: readTermFromUrl(), nonce: current.nonce + 1 }));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Effect to apply class to body element
   useEffect(() => {
@@ -125,10 +140,13 @@ const App = () => {
     <div className="app">
       <Header onThemeToggle={handleThemeToggle} theme={theme} />
       <div className='searchWrapper'>
-        <Search onSearch={handleSearch} />
+        <Search onSearch={handleSearch} term={request.term} />
 
         {status === 'idle' && (
-          <p className="placeholder-text">Enter a word to get started</p>
+          <>
+            <p className="placeholder-text">Enter a word to get started</p>
+            <RecentWords onSelect={handleSearch} />
+          </>
         )}
         {status === 'loading' && <ResultSkeleton />}
         {status === 'success' && (
@@ -154,7 +172,7 @@ const App = () => {
                 </button>
               </div>
             )}
-            <WordDisplay wordData={wordData} />
+            <WordDisplay wordData={wordData} onSelectWord={handleSearch} />
           </ErrorBoundary>
         )}
         {status === 'error' && (

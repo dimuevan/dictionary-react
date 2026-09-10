@@ -40,7 +40,23 @@ const groupMeanings = (entries) => {
   }));
 };
 
-const WordDisplay = ({ wordData }) => {
+/**
+ * Related words are entry points, not decoration: each one starts a new lookup,
+ * which turns a single entry into something you can wander through.
+ */
+const renderWords = (words, onSelectWord) =>
+  words.map((word) => (
+    <button
+      key={word}
+      type="button"
+      className="keyword-button"
+      onClick={() => onSelectWord(word)}
+    >
+      {word}
+    </button>
+  ));
+
+const WordDisplay = ({ wordData, onSelectWord = () => {} }) => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Function to play audio pronunciation
@@ -117,14 +133,14 @@ const WordDisplay = ({ wordData }) => {
           {group.synonyms.length > 0 && (
             <div className="synonyms">
               <p className='subtitle'>Synonyms</p>
-              <span className='keywords'>{group.synonyms.join(', ')}</span>
+              <span className='keywords'>{renderWords(group.synonyms, onSelectWord)}</span>
             </div>
           )}
 
           {group.antonyms.length > 0 && (
             <div className="antonyms">
               <p className='subtitle'>Antonyms</p>
-              <span className='keywords'>{group.antonyms.join(', ')}</span>
+              <span className='keywords'>{renderWords(group.antonyms, onSelectWord)}</span>
             </div>
           )}
         </div>

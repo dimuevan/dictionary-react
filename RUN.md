@@ -52,8 +52,10 @@ set PORT=3001 && npm start   # Windows cmd
 ### Τι να δοκιμάσεις μόλις ανοίξει
 1. Γράψε `keyboard` και πάτα **Enter** (ή το εικονίδιο lupa)
 2. Πάτα το μωβ ▶ για την προφορά
-3. Γύρνα τον διακόπτη πάνω δεξιά για dark mode
-4. Γράψε μια ανύπαρκτη λέξη (π.χ. `zzzzqqq`) — εμφανίζεται μαύρο toast «Word not found»
+3. Πάτα ένα συνώνυμο για να ανοίξει σαν νέα αναζήτηση, μετά το «πίσω» του browser
+4. Γύρνα τον διακόπτη πάνω δεξιά για dark mode
+5. Γράψε μια ανύπαρκτη λέξη (π.χ. `zzzzqqq`) — εμφανίζεται μαύρο toast «Word not found»
+6. Γύρνα στην αρχική — οι πρόσφατες λέξεις σε περιμένουν ως chips
 
 ---
 
@@ -116,7 +118,11 @@ src/
 ├── index.css           # CSS variables + light/dark themes (body.light / body.dark)
 ├── App.js              # theme, όρος αναζήτησης, επιλογή τι δείχνει η οθόνη
 ├── App.css             # error toast, placeholder, layout wrapper
-├── useDictionary.js    # το fetch: status/data/error, ακύρωση, encoding
+├── useDictionary.js    # το fetch: status/data/error, ακύρωση, encoding, δεύτερη πηγή
+├── wiktionary.js       # εφεδρική πηγή όταν η κύρια API δεν απαντά
+├── wordCache.js        # αποθηκευμένες λέξεις + ιστορικό αναζητήσεων
+├── urlTerm.js          # η λέξη στη γραμμή διευθύνσεων (?w=...)
+├── RecentWords.js      # τα chips με τις πρόσφατες λέξεις στην κενή οθόνη
 ├── ErrorBoundary.js    # κρατάει μια κακοσχηματισμένη απάντηση από το να σβήσει τη σελίδα
 ├── ResultSkeleton.js   # placeholder όσο φορτώνει
 ├── Header.js/.css      # λογότυπο + διακόπτης θέματος
@@ -126,6 +132,10 @@ src/
 ├── App.test.js         # τα tests
 └── images/icons/       # moon.svg, sun.svg
 ```
+
+**Πλοήγηση:** η λέξη ζει στο URL ως `?w=<word>`. Κάθε αναζήτηση, κλικ σε
+συνώνυμο ή σε πρόσφατη λέξη γράφει νέα εγγραφή στο ιστορικό του browser, οπότε
+το «πίσω» γυρίζει στην προηγούμενη λέξη και κάθε ορισμός είναι κοινοποιήσιμος.
 
 **Ροή δεδομένων:** `Search` → `onSearch(query)` → `App` κρατάει
 `{ term, nonce }` → `useDictionary` κάνει `fetch` στο
