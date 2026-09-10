@@ -1,7 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import App from './App';
-import React from 'react';
 import { resetPrimaryBreaker } from './useDictionary';
 import { wordOfTheDay } from './wordOfTheDay';
 import { boxCounts, dueEntries, recordAnswer, stateFor } from './studySchedule';
@@ -510,6 +509,17 @@ test('opens the word the address bar arrives with', async () => {
 
   expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
   expect(screen.getByLabelText('Search for a word')).toHaveValue('keyboard');
+});
+
+test('puts the word in the tab title, and takes it back out', async () => {
+  render(<App />);
+  expect(document.title).toBe('Dictionearch by iamevandimu.com');
+
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  // The title is the bookmark name and the history entry, not decoration.
+  expect(document.title).toBe('keyboard — Dictionearch');
+  await settle();
 });
 
 test('follows the browser back button between words', async () => {

@@ -1,6 +1,6 @@
 import './RecentWords.css';
 
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { clearFavourites, readFavourites, removeFavourite, toCsv, toTsv } from './favourites';
 import { buildBackup, restoreBackup } from './backup';
 import { clearCachedWords, readCachedPayload, readRecentWords } from './wordCache';

@@ -1,6 +1,6 @@
 import './StudyCards.css';
 
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { dueEntries, nextDueAt, recordAnswer, stateFor } from './studySchedule';
 
 import { readCachedPayload } from './wordCache';

@@ -20,13 +20,19 @@ jobs:
 
       - run: npm ci
 
+      # react-scripts used to lint on every build, and CI=true made a warning
+      # fatal. The move to Vite quietly took both away; these put them back.
+      - name: Lint
+        run: npm run lint
+
+      - name: Lint stylesheets
+        run: npm run lint:css
+
       - name: Test
         run: npm test
 
       - name: Build
         run: npm run build
-        env:
-          CI: true
 
       # The deploy subdirectory is baked into every asset path at build time,
       # and getting it wrong produces a page that loads and renders nothing.

@@ -61,9 +61,20 @@ absolute.forEach((path) => {
   if (!existsSync(onDisk)) note(`"${path}" is referenced but ${onDisk} does not exist`);
 });
 
-['service-worker.js', 'manifest.json', 'favicon.ico'].forEach((file) => {
+['service-worker.js', 'manifest.json', 'favicon.ico', 'social-card.png'].forEach((file) => {
   if (!existsSync(join(BUILD, file))) note(`${file} is missing from ${BUILD}/`);
 });
+
+// The preview image is named by absolute URL, so nothing else would notice it
+// going missing until someone pasted a link and got a blank card. Tags are
+// written across several lines here, so collapse the whitespace before looking.
+const flat = html.replace(/\s+/g, ' ');
+const socialCard = (flat.match(/property="og:image" content="([^"]+)"/) || [])[1];
+
+if (!socialCard) note('index.html declares no og:image');
+else if (!/^https?:\/\//.test(socialCard)) {
+  note(`og:image "${socialCard}" is relative; link previews need an absolute URL`);
+}
 
 // Which directory the hashed assets actually landed in, per the HTML.
 const assetDir = absolute

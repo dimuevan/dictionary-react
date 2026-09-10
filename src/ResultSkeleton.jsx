@@ -1,6 +1,5 @@
 import './ResultSkeleton.css';
 
-import React from 'react';
 
 /** Placeholder shown while a word is being fetched. */
 const ResultSkeleton = () => (

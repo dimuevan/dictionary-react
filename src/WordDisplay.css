@@ -18,11 +18,23 @@
     opacity: 0.9;
   }
   
+  /* This used to be five separate rules, each written under the last, each
+     partly cancelling the one before: the font-size two of them set was already
+     dead by the end. This is what the browser was actually computing. */
   .audio-button {
-    background: none;
+    background: rgba(166, 67, 232, 0.2);
     border: none;
-    font-size: 24px;
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font: inherit;
+    color: inherit;
     cursor: pointer;
+    transition: box-shadow 0.3s ease-in-out;
   }
   
   .word-meaning {
@@ -44,11 +56,7 @@
   }
   
   .synonyms {
-    color: #555;
-    margin-top: 5px;
-  }
-  
-  .synonyms {
+    color: var(--text-muted);
     margin-top: 10px;
   }
   
@@ -72,7 +80,7 @@
     font-size: 14px;
     margin-right: 24px;
     display: inline-block;
-    opacity: 0.4;
+    color: var(--text-muted);
   }
 
   .source p {
@@ -81,11 +89,10 @@
   }
   
   .source a {
-    color: #a543e8; /* Typical hyperlink color */
+    color: var(--accent-text);
     text-decoration: none;
     display: inline-block;
     font-size: 14px;
-    opacity: 0.6;
   }
   
   .source a:hover {
@@ -94,16 +101,6 @@
     transition: opacity 0.3s;
   }
 
-  .audio-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
   .audio-button svg {
     fill: currentColor; /* Icon color inherits from text color */
     transition: fill 0.2s ease-in-out;
@@ -129,33 +126,15 @@
     letter-spacing: 2px;
     font-size: 22px;
     font-weight: 100;
-    color: #a543e8;
+    color: var(--accent-text);
   }
   
-  .audio-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-  }
-
   .etymology {
     margin-top: 10px;
     font-style: italic;
-    color: #555; /* Adjust the color to fit your app's theme */
+    color: var(--text-muted);
   }
 
-  .audio-button {
-    background: rgba(166, 67, 232, 0.2);
-    border-radius: 50%;
-    width: 80px;
-    height: 80px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    transition: box-shadow 0.3s ease-in-out;
-  }
-  
   .audio-button.is-playing {
     /* Add animation or any indication that the audio is playing */
     animation: pulse-animation 2s infinite;
@@ -224,8 +203,7 @@
 }
 
 .subtitle {
-  opacity: 0.4;
-  color: var(--text-color);
+  color: var(--text-muted);
   font-size: 20px;
   letter-spacing: 0.3px;
   font-weight: 600;
@@ -250,7 +228,7 @@
   margin-left: 24px;
   font-size: 20px;
   font-weight: 900;
-  color: #a543e8;
+  color: var(--accent-text);
 }
 
 ul {
@@ -319,15 +297,7 @@ ul li::marker {
     }
 
   }
-  /* The play control is a real <button>, so give it a visible focus ring
-     and strip the default button chrome the last .audio-button rule leaves. */
-  .audio-button {
-    border: none;
-    padding: 0;
-    font: inherit;
-    color: inherit;
-  }
-
+  /* The play control is a real <button>, so it gets a visible focus ring. */
   .audio-button:focus-visible {
     outline: 2px solid #a543e8;
     outline-offset: 4px;
@@ -353,8 +323,7 @@ ul li::marker {
   .keyword-button:not(:last-child)::after {
     /* A literal space in `content` collapses; the escape keeps it. */
     content: ",\00a0";
-    color: var(--text-color);
-    opacity: 0.4;
+    color: var(--text-muted);
   }
 
   .keyword-button:hover {
@@ -442,17 +411,15 @@ ul li::marker {
     font-size: 12px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-color);
-    opacity: 0.5;
+    color: var(--text-muted);
   }
 
-  .frequency.is-common { color: #2f7d5c; opacity: 0.9; }
-  .frequency.is-rare { color: #a543e8; opacity: 0.9; }
+  .frequency.is-common { color: var(--positive); }
+  .frequency.is-rare { color: var(--accent-text); }
 
   .frequency-detail {
     letter-spacing: 0;
     text-transform: none;
-    opacity: 0.7;
   }
 
   .etymology-section {

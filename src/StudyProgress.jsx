@@ -1,6 +1,5 @@
 import './StudyProgress.css';
 
-import React from 'react';
 import { INTERVAL_DAYS } from './studySchedule';
 
 const BOX_LABELS = ['new', '1 day', '3 days', '7 days', '3 weeks'];

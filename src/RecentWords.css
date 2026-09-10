@@ -14,7 +14,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-color);
-  opacity: 0.4;
+  opacity: 0.65;
 }
 
 .recent-list {
@@ -28,6 +28,9 @@
 }
 
 .recent-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   margin: 0;
   padding: 0;
   line-height: normal;
@@ -59,7 +62,7 @@
   font-family: inherit;
   font-size: 13px;
   color: var(--text-color);
-  opacity: 0.4;
+  opacity: 0.65;
   background: none;
   border: none;
   padding: 4px 8px;
@@ -69,13 +72,13 @@
 }
 
 .recent-clear:hover {
-  opacity: 0.8;
+  opacity: 1;
 }
 
 .recent-clear:focus-visible {
   outline: 2px solid #a543e8;
   outline-offset: 2px;
-  opacity: 0.8;
+  opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -95,7 +98,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-color);
-  opacity: 0.4;
+  opacity: 0.65;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -104,7 +107,7 @@
   transition: opacity 0.2s, border-color 0.2s;
 }
 
-.recent-tab:hover { opacity: 0.75; }
+.recent-tab:hover { opacity: 0.85; }
 
 .recent-tab.is-active {
   opacity: 1;
@@ -115,12 +118,6 @@
   outline: 2px solid #a543e8;
   outline-offset: 2px;
   opacity: 1;
-}
-
-.recent-list li {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
 }
 
 .chip-lang {

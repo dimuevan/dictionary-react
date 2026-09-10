@@ -1,6 +1,5 @@
 import './Header.css'; // Assuming you have a CSS file for styling
 
-import React from 'react';
 
 import { MoonIcon, SunIcon } from './icons';
 

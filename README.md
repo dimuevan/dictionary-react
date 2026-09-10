@@ -38,6 +38,10 @@ seen before comes back whole without asking anyone.
 **Reads six languages.** English, Spanish, French, German, Italian and Portuguese,
 each from its own dictionary and its own Wiktionary.
 
+**Is usable.** Every screen is scanned by axe on every push, in both themes and
+at both widths, against the WCAG A and AA rules. The first run found twenty-four
+real failures — grey text that looked deliberate and could not be read.
+
 **Behaves like a tool.** The word lives in the address bar, so definitions are
 shareable and the back button works. `/` jumps to the search box, `Escape` clears
 it, arrow keys walk the suggestions. Light and dark, three typefaces, and a
@@ -58,11 +62,14 @@ Full instructions, including the production build and its one trap, are in
 [RUN.md](RUN.md).
 
 ```bash
-npm test            # 63 unit tests
-npm run e2e         # 24 browser checks, desktop and phone
+npm test            # 64 unit tests
+npm run e2e         # 28 browser checks, desktop and phone
+npm run lint        # ESLint, with the React hook rules
+npm run lint:css    # the stylesheets, for rules that quietly cancel each other
 npm run build       # production build for the hosting subdirectory
 npm run check:build # that the build works where it is deployed
 npm run check:apis  # the shapes the three services are expected to return
+npm run card        # redraws the link-preview image
 ```
 
 Both suites run on every push — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).

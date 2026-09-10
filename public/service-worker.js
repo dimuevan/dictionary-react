@@ -1,5 +1,3 @@
-/* eslint-disable no-restricted-globals */
-
 /**
  * Caches the app shell so Dictionearch opens without a network. Words
  * themselves are already kept in localStorage by the app, so this is only about

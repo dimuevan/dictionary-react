@@ -1,6 +1,6 @@
 import './App.css'; // Your main CSS file
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';

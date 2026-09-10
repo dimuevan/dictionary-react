@@ -1,4 +1,3 @@
-import React from 'react';
 
 /**
  * The two theme icons, inline rather than imported from .svg files: CRA turned

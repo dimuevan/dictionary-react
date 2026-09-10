@@ -107,9 +107,11 @@ service worker κάνει cache τον φάκελο που το build παράγ
 ## 5. Tests
 
 ```bash
-npm test           # 63 unit tests, μία φορά
-npm run test:watch # watch mode
-npm run e2e        # 24 έλεγχοι σε πραγματικό browser, desktop και κινητό
+npm test            # 64 unit tests, μία φορά
+npm run test:watch  # watch mode
+npm run e2e         # 28 έλεγχοι σε πραγματικό browser, desktop και κινητό
+npm run lint        # ESLint, με τους κανόνες των React hooks
+npm run lint:css    # τα stylesheets
 npm run check:build # ότι το build δουλεύει στον υποφάκελο του server
 ```
 
@@ -117,7 +119,8 @@ npm run check:build # ότι το build δουλεύει στον υποφάκε
 κάποια στιγμή. Οι browser έλεγχοι πιάνουν αυτά που τα unit tests δεν βλέπουν:
 layout που ξεχειλίζει στο κινητό, ηχητικό αρχείο που δεν κατεβαίνει, τη σελίδα
 να ανοίγει με το δίκτυο κατεβασμένο, και το θέμα να έχει ήδη μπει πριν
-προλάβει να φορτώσει η εφαρμογή.
+προλάβει να φορτώσει η εφαρμογή. Μαζί τους τρέχει και ένας έλεγχος
+προσβασιμότητας με `axe` σε κάθε οθόνη, σε φωτεινό και σκοτεινό θέμα.
 
 Και τα δύο τρέχουν αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`.
 Ξεχωριστά, ένα ημερήσιο job (`.github/workflows/api-contract.yml`) χτυπά τις

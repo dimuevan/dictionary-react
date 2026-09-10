@@ -93,8 +93,6 @@
     color: #a543e8;
     line-height: 1;
     display: flex;
-    /*font-size: 48px;*/
-    font-weight: 900;
   }
 
   .theme-toggle-wrapper {
@@ -109,9 +107,6 @@
     .header {
       position: relative;
       padding: 20px 20px 12px;
-    }
-  
-    .moon-icon {
     }
   }
   

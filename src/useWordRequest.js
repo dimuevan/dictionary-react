@@ -11,8 +11,18 @@ import { resetPrimaryBreaker } from './useDictionary';
  * The nonce changes on every submit so the same word can be searched twice, and
  * so a retry is just another request.
  */
+const SITE_TITLE = 'Dictionearch by iamevandimu.com';
+
 const useWordRequest = () => {
   const [request, setRequest] = useState(() => ({ ...readRequestFromUrl(), nonce: 0 }));
+
+  // The title is the name of the bookmark and the entry in the history, and it
+  // is what tells five open tabs apart. The word is already in the address; it
+  // belongs here too.
+  useEffect(() => {
+    const term = request.term.trim();
+    document.title = term ? `${term} — Dictionearch` : SITE_TITLE;
+  }, [request.term]);
 
   useEffect(() => {
     const handlePopState = () => {

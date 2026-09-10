@@ -1,6 +1,6 @@
 import './WordDisplay.css'; // CSS file for styling
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { DEFAULT_LANGUAGE } from './languages';
 import { readExtra, writeExtra } from './extrasCache';
@@ -371,7 +371,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
               <li className='meanings--definition' key={`${group.partOfSpeech}-${index}`}>
                 <span lang={lang}>{def.definition}</span>
                 {def.example && (
-                  <span className='meanings--example' lang={lang}>"{def.example}"</span>
+                  <span className='meanings--example' lang={lang}>
+                    &quot;{def.example}&quot;
+                  </span>
                 )}
                 <button
                   type="button"

@@ -1,6 +1,6 @@
 import './Search.css'; // Make sure to create a corresponding CSS file for styling
 
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_LANGUAGE } from './languages';
 import { fetchCompletions } from './datamuse';
