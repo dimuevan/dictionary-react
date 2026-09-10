@@ -120,7 +120,9 @@ const Search = ({ onSearch, term = '', lang = DEFAULT_LANGUAGE }) => {
         </svg>
       </button>
       {completions.length > 0 && (
-        <ul className="completions" role="listbox" aria-label="Suggestions">
+        {/* A plain list of buttons, not a listbox: a listbox's children must be
+            options, and buttons are already reachable and announced correctly. */}
+        <ul className="completions" aria-label="Suggestions">
           {completions.map((word) => (
             <li key={word}>
               <button type="button" className="completion" onClick={() => choose(word)}>
