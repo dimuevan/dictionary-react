@@ -11,13 +11,23 @@
  * actually emits: it spent its whole life caching Create React App's /static/,
  * which Vite has never written.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const BUILD = 'build';
 const base = process.env.VITE_BASE || '/challenges/react/dictionearch/';
 
+/**
+ * What the reader is asked to download. Today it is 187 KB of JavaScript and
+ * 19 KB of stylesheet, which is fine; the point of a budget is that nobody
+ * would otherwise notice the day it becomes 400. Raising a number here should
+ * be a decision someone makes on purpose.
+ */
+const BUDGET = { '.js': 250 * 1024, '.css': 40 * 1024 };
+const asKb = (bytes) => `${(bytes / 1024).toFixed(1)} KB`;
+
 const problems = [];
+const sizes = [];
 const note = (message) => problems.push(message);
 
 if (!existsSync(BUILD)) {
@@ -34,6 +44,12 @@ const absolute = referenced.filter((value) => value.startsWith('/'));
 if (absolute.length === 0) {
   note('index.html references no build assets at all — did the build run?');
 }
+
+// A relative path works at .../dictionearch/ and breaks at .../dictionearch —
+// the same family of failure as the wrong base, and just as quiet.
+referenced
+  .filter((value) => !/^([a-z]+:|\/\/|\/|#|data:)/.test(value))
+  .forEach((value) => note(`"${value}" is a relative path; it breaks without a trailing slash`));
 
 absolute.forEach((path) => {
   if (!path.startsWith(base)) {
@@ -74,10 +90,24 @@ if (!assetDir) {
   const assets = existsSync(join(BUILD, assetDir)) ? readdirSync(join(BUILD, assetDir)) : [];
   if (!assets.some((file) => file.endsWith('.js'))) note('no JavaScript bundle was emitted');
   if (!assets.some((file) => file.endsWith('.css'))) note('no stylesheet was emitted');
+
+  Object.keys(BUDGET).forEach((extension) => {
+    const total = assets
+      .filter((file) => file.endsWith(extension))
+      .reduce((sum, file) => sum + statSync(join(BUILD, assetDir, file)).size, 0);
+
+    sizes.push({ extension, total, budget: BUDGET[extension] });
+    if (total > BUDGET[extension]) {
+      note(
+        `${extension} assets are ${asKb(total)}, over the ${asKb(BUDGET[extension])} budget — ` +
+          'either trim it or raise the budget in scripts/check-build.mjs on purpose'
+      );
+    }
+  });
 }
 
 if (problems.length) {
-  console.error(`This build would not work at ${base}\n`);
+  console.error(`This build is not ready for ${base}\n`);
   problems.forEach((problem) => console.error(`  - ${problem}`));
   process.exit(1);
 }
@@ -85,3 +115,8 @@ if (problems.length) {
 console.log(`build/ looks right for ${base}`);
 console.log(`  ${absolute.length} asset references, all under the deploy base`);
 console.log(`  hashed assets in ${assetDir}/, which the service worker caches`);
+sizes.forEach(({ extension, total, budget }) => {
+  console.log(
+    `  ${extension} ${asKb(total)} of ${asKb(budget)} (${Math.round((total / budget) * 100)}%)`
+  );
+});

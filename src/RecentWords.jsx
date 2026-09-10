@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import { clearFavourites, readFavourites, removeFavourite, toCsv, toTsv } from './favourites';
 import { buildBackup, restoreBackup } from './backup';
 import { clearCachedWords, readCachedPayload, readRecentWords } from './wordCache';
+import { clearExtras } from './extrasCache';
 
 import StudyCards from './StudyCards';
 import StudyProgress from './StudyProgress';
@@ -95,6 +96,9 @@ const RecentWords = ({ onSelect }) => {
   const handleClear = () => {
     if (tab === 'recent') {
       clearCachedWords();
+      // The origins and frequencies are keyed by word: forgetting the history
+      // has to forget them too, or the words are still there.
+      clearExtras();
       setRecent([]);
     } else {
       clearFavourites();
@@ -145,7 +149,8 @@ const RecentWords = ({ onSelect }) => {
                 className="chip"
                 onClick={() => onSelect(entry.term, entry.lang)}
               >
-                {entry.term}
+                {/* The list mixes languages, so each chip declares its own. */}
+                <span lang={entry.lang}>{entry.term}</span>
                 {entry.lang !== DEFAULT_LANGUAGE && (
                   <span className="chip-lang">{entry.lang}</span>
                 )}

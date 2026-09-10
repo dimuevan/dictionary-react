@@ -7,6 +7,7 @@ import { wordOfTheDay } from './wordOfTheDay';
 import { boxCounts, dueEntries, recordAnswer, stateFor } from './studySchedule';
 import { readFavourites, toTsv } from './favourites';
 import { restoreBackup } from './backup';
+import { readExtra } from './extrasCache';
 
 /**
  * Each test here locks down a bug that shipped at some point: they are the
@@ -866,6 +867,64 @@ test('shows the origin of a word when Wiktionary has one', async () => {
     await screen.findByText('From Middle English keye plus board.')
   ).toBeInTheDocument();
   expect(screen.getByText('Origin')).toBeInTheDocument();
+});
+
+const etymologyPage = (text) =>
+  mockJson({ parse: { text: `<h3>Etymology</h3><p>${text}</p>` } });
+
+test('asks for an origin once, not on every visit to the same word', async () => {
+  stubFetch((url) => (url.includes('api.php') ? etymologyPage('From key plus board.') : mockJson([entry()])), {
+    extras: true,
+  });
+
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByText('From key plus board.');
+  expect(readExtra('keyboard', 'en', 'etymology')).toBe('From key plus board.');
+  unmount();
+
+  global.fetch.mockClear();
+  render(<App />);
+  search('keyboard');
+
+  // The origin is on screen again, and Wiktionary was never asked for it.
+  expect(await screen.findByText('From key plus board.')).toBeInTheDocument();
+  expect(global.fetch.mock.calls.every(([url]) => !String(url).includes('api.php'))).toBe(true);
+  await settle();
+});
+
+test('does not remember a service that had nothing to say', async () => {
+  // An outage must not become a month of remembered silence.
+  stubFetch((url) => (url.includes('api.php') ? mockJson({}) : mockJson([entry()])), { extras: true });
+
+  const { unmount } = render(<App />);
+  search('keyboard');
+  await screen.findByRole('heading', { name: 'keyboard' });
+  await settle();
+  expect(readExtra('keyboard', 'en', 'etymology')).toBe(null);
+  unmount();
+
+  stubFetch((url) => (url.includes('api.php') ? etymologyPage('From key plus board.') : mockJson([entry()])), {
+    extras: true,
+  });
+  render(<App />);
+  search('keyboard');
+
+  expect(await screen.findByText('From key plus board.')).toBeInTheDocument();
+});
+
+test('declares the language of the entry, not of the page', async () => {
+  render(<App />);
+  search('keyboard');
+  expect(await screen.findByRole('heading', { name: 'keyboard' })).toHaveAttribute('lang', 'en');
+
+  fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'es' } });
+
+  // A screen reader should not read a Spanish entry with English rules.
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { name: 'keyboard' })).toHaveAttribute('lang', 'es')
+  );
+  await settle();
 });
 
 test('says nothing about origin when the page has no etymology section', async () => {

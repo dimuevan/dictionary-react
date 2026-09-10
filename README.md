@@ -32,6 +32,8 @@ behind the scenes.
 **Remembers.** Every lookup is saved; the empty screen offers the recent ones.
 Star the ones you mean to keep, study them as flashcards on a Leitner schedule,
 and export to CSV, to Anki, or as a JSON backup you can restore on another machine.
+Origins, frequencies and rhymes are kept alongside the entry, so a word you have
+seen before comes back whole without asking anyone.
 
 **Reads six languages.** English, Spanish, French, German, Italian and Portuguese,
 each from its own dictionary and its own Wiktionary.
@@ -39,7 +41,9 @@ each from its own dictionary and its own Wiktionary.
 **Behaves like a tool.** The word lives in the address bar, so definitions are
 shareable and the back button works. `/` jumps to the search box, `Escape` clears
 it, arrow keys walk the suggestions. Light and dark, three typefaces, and a
-service worker so it opens offline.
+service worker so it opens offline — with the
+theme applied before the first paint, so choosing dark does not mean a white
+flash on every load.
 
 ---
 
@@ -54,8 +58,8 @@ Full instructions, including the production build and its one trap, are in
 [RUN.md](RUN.md).
 
 ```bash
-npm test            # 60 unit tests
-npm run e2e         # 20 browser checks, desktop and phone
+npm test            # 63 unit tests
+npm run e2e         # 24 browser checks, desktop and phone
 npm run build       # production build for the hosting subdirectory
 npm run check:build # that the build works where it is deployed
 npm run check:apis  # the shapes the three services are expected to return
@@ -80,6 +84,7 @@ src/
 ├── datamuse.js         # spelling suggestions, completions, frequency, rhymes
 ├── etymology.js        # the Origin section, read out of a Wiktionary page
 ├── wordCache.js        # saved entries, which double as the history
+├── extrasCache.js      # and the origins, frequencies and rhymes beside them
 ├── favourites.js       # starred words, CSV and Anki export
 ├── studySchedule.js    # Leitner boxes
 ├── backup.js           # JSON export and merge-on-restore

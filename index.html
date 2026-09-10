@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="favicon.ico" />
+    <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#a543e8" />
     <meta
@@ -15,11 +15,39 @@
       content="Look up any English word: definitions, examples, synonyms and audio pronunciation."
     />
     <meta property="og:type" content="website" />
-    <link rel="apple-touch-icon" href="logo192.png" />
-    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="/logo192.png" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Dictionearch by iamevandimu.com</title>
   </head>
   <body>
+    <!--
+      The theme is a class on <body>, and React can only put it there after the
+      first paint — so every load showed a white flash to anyone who had chosen
+      dark. This runs before the browser paints anything.
+
+      The keys and the defaults are the ones in src/usePreferences.js, which
+      stays the authority: this only gets the first frame right.
+    -->
+    <script>
+      (function () {
+        var theme = 'light';
+        var font = 'serif';
+        try {
+          var stored = localStorage.getItem('dictionearch-theme');
+          if (stored === 'light' || stored === 'dark') theme = stored;
+          else if (window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+
+          var storedFont = localStorage.getItem('dictionearch-font');
+          if (storedFont === 'serif' || storedFont === 'sans' || storedFont === 'mono') {
+            font = storedFont;
+          }
+        } catch (error) {
+          // private mode, blocked site data: the defaults above still apply
+        }
+        document.body.className = theme + ' font-' + font;
+      })();
+    </script>
+
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/index.jsx"></script>

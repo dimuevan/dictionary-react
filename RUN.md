@@ -107,16 +107,17 @@ service worker κάνει cache τον φάκελο που το build παράγ
 ## 5. Tests
 
 ```bash
-npm test           # 60 unit tests, μία φορά
+npm test           # 63 unit tests, μία φορά
 npm run test:watch # watch mode
-npm run e2e        # 20 έλεγχοι σε πραγματικό browser, desktop και κινητό
+npm run e2e        # 24 έλεγχοι σε πραγματικό browser, desktop και κινητό
 npm run check:build # ότι το build δουλεύει στον υποφάκελο του server
 ```
 
 Το `src/App.test.jsx` κρατάει καταγεγραμμένη κάθε διαδρομή που έχει σπάσει
 κάποια στιγμή. Οι browser έλεγχοι πιάνουν αυτά που τα unit tests δεν βλέπουν:
-layout που ξεχειλίζει στο κινητό, ηχητικό αρχείο που δεν κατεβαίνει, και τη
-σελίδα να ανοίγει με το δίκτυο κατεβασμένο.
+layout που ξεχειλίζει στο κινητό, ηχητικό αρχείο που δεν κατεβαίνει, τη σελίδα
+να ανοίγει με το δίκτυο κατεβασμένο, και το θέμα να έχει ήδη μπει πριν
+προλάβει να φορτώσει η εφαρμογή.
 
 Και τα δύο τρέχουν αυτόματα σε κάθε push μέσω `.github/workflows/ci.yml`.
 Ξεχωριστά, ένα ημερήσιο job (`.github/workflows/api-contract.yml`) χτυπά τις
@@ -148,6 +149,7 @@ src/
 ├── datamuse.js         # προτάσεις ορθογραφίας, συμπληρώσεις, συχνότητα, ρίμες
 ├── etymology.js        # η ενότητα «Origin», από σελίδα του Wiktionary
 ├── wordCache.js        # αποθηκευμένες λέξεις — και το ιστορικό μαζί
+├── extrasCache.js      # ετυμολογία, συχνότητα και ρίμες δίπλα τους
 ├── favourites.js       # αστεράκια, export σε CSV και Anki
 ├── studySchedule.js    # κουτιά Leitner για την επανάληψη
 ├── backup.js           # export/restore σε JSON

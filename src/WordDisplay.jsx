@@ -3,6 +3,7 @@ import './WordDisplay.css'; // CSS file for styling
 import React, { useEffect, useState } from 'react';
 
 import { DEFAULT_LANGUAGE } from './languages';
+import { readExtra, writeExtra } from './extrasCache';
 import { fetchEtymology } from './etymology';
 import { fetchFrequency, fetchRelatedWords } from './datamuse';
 import { downloadWordCard } from './wordCardImage';
@@ -145,21 +146,25 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
   // Two extras that enrich an entry without being part of it: neither blocks
   // the definition, and neither shows anything when it cannot be had.
   useEffect(() => {
-    setFrequency(null);
-    if (lang !== DEFAULT_LANGUAGE) return undefined;
+    const remembered = readExtra(headword, lang, 'frequency');
+    setFrequency(remembered);
+    if (remembered || lang !== DEFAULT_LANGUAGE) return undefined;
 
     const controller = new AbortController();
     fetchFrequency(headword, controller.signal).then((result) => {
-      if (!controller.signal.aborted && result) setFrequency(result);
+      if (controller.signal.aborted || !result) return;
+      setFrequency(result);
+      writeExtra(headword, lang, 'frequency', result);
     });
 
     return () => controller.abort();
   }, [headword, lang]);
 
   useEffect(() => {
-    setRelated(NOTHING_RELATED);
+    const remembered = readExtra(headword, lang, 'related');
+    setRelated(remembered || NOTHING_RELATED);
     setExpanded({});
-    if (lang !== DEFAULT_LANGUAGE) return undefined;
+    if (remembered || lang !== DEFAULT_LANGUAGE) return undefined;
 
     const controller = new AbortController();
     fetchRelatedWords(headword, controller.signal).then((result) => {
@@ -167,18 +172,24 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
       // A fresh empty object would still be a new value to React, and so a
       // re-render that changes nothing on screen — one per word, plus an act()
       // warning for every test that did not wait for an answer nobody shows.
-      if (result.rhymes.length || result.similar.length) setRelated(result);
+      if (!result.rhymes.length && !result.similar.length) return;
+      setRelated(result);
+      writeExtra(headword, lang, 'related', result);
     });
 
     return () => controller.abort();
   }, [headword, lang]);
 
   useEffect(() => {
-    setEtymology(null);
-    const controller = new AbortController();
+    const remembered = readExtra(headword, lang, 'etymology');
+    setEtymology(remembered);
+    if (remembered) return undefined;
 
+    const controller = new AbortController();
     fetchEtymology(headword, lang, controller.signal).then((text) => {
-      if (!controller.signal.aborted && text) setEtymology(text);
+      if (controller.signal.aborted || !text) return;
+      setEtymology(text);
+      writeExtra(headword, lang, 'etymology', text);
     });
 
     return () => controller.abort();
@@ -262,7 +273,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
     <div className="word-display">
       <div className="word-header">
         <div className="word-texts">
-          <h2 className="word-title">{entries[0].word}</h2>
+          <h2 className="word-title" lang={lang}>
+            {entries[0].word}
+          </h2>
           {phoneticText && (
             <div className="phonetics">
               <div className="phonetic-text">{phoneticText}</div>
@@ -347,7 +360,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
       {meaningGroups.map((group) => (
         <div key={group.partOfSpeech} className="meanings-section">
           <h3>
-            <span>
+            <span lang={lang}>
               {group.partOfSpeech.charAt(0).toUpperCase() + group.partOfSpeech.slice(1)}
             </span>
           </h3>
@@ -356,9 +369,9 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
           <ul>
             {visibleDefinitions(group, expanded).map((def, index) => (
               <li className='meanings--definition' key={`${group.partOfSpeech}-${index}`}>
-                {def.definition}
+                <span lang={lang}>{def.definition}</span>
                 {def.example && (
-                  <span className='meanings--example'>"{def.example}"</span>
+                  <span className='meanings--example' lang={lang}>"{def.example}"</span>
                 )}
                 <button
                   type="button"
@@ -392,14 +405,14 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
           {group.synonyms.length > 0 && (
             <div className="synonyms">
               <p className='subtitle'>Synonyms</p>
-              <span className='keywords'>{renderWords(group.synonyms, onSelectWord)}</span>
+              <span className='keywords' lang={lang}>{renderWords(group.synonyms, onSelectWord)}</span>
             </div>
           )}
 
           {group.antonyms.length > 0 && (
             <div className="antonyms">
               <p className='subtitle'>Antonyms</p>
-              <span className='keywords'>{renderWords(group.antonyms, onSelectWord)}</span>
+              <span className='keywords' lang={lang}>{renderWords(group.antonyms, onSelectWord)}</span>
             </div>
           )}
         </div>
