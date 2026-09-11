@@ -3,6 +3,7 @@ import App from './App';
 import { boxCounts, dueEntries, recordAnswer } from './studySchedule';
 import {
   entry,
+  settle,
   mockJson,
   search,
   startClean,
@@ -26,8 +27,8 @@ test('study cards ask for the word behind a definition', async () => {
 
   window.history.replaceState({}, '', '/');
   render(<App />);
-  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
-  fireEvent.click(screen.getByRole('button', { name: /^Study \d+ words?$/ }));
+  // The review card is on the empty screen; nothing has to be opened first.
+  fireEvent.click(await screen.findByRole('button', { name: /^Study \d+ words?$/ }));
 
   // The definition is shown first; the word is the answer.
   expect(screen.getByText('A set of keys.')).toBeInTheDocument();
@@ -35,6 +36,7 @@ test('study cards ask for the word behind a definition', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Show the word' }));
   expect(screen.getByRole('button', { name: 'keyboard' })).toBeInTheDocument();
+  await settle();
 });
 
 // ------------------------------------------------------- third board of ideas
@@ -48,8 +50,8 @@ test('a card answered correctly leaves the queue', async () => {
 
   window.history.replaceState({}, '', '/');
   render(<App />);
-  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
-  fireEvent.click(screen.getByRole('button', { name: /^Study \d+ words?$/ }));
+  // The review card is on the empty screen; nothing has to be opened first.
+  fireEvent.click(await screen.findByRole('button', { name: /^Study \d+ words?$/ }));
 
   expect(screen.getByText(/box 1/)).toBeInTheDocument();
   fireEvent.click(screen.getByRole('button', { name: 'Show the word' }));
@@ -58,6 +60,7 @@ test('a card answered correctly leaves the queue', async () => {
   // Only one saved word, so answering it empties the queue.
   expect(screen.getByText(/1 card reviewed/)).toBeInTheDocument();
   expect(screen.getByText(/Next review tomorrow/)).toBeInTheDocument();
+  await settle();
 });
 
 test('the schedule moves a word up on success and back to the first box on failure', () => {
@@ -105,11 +108,12 @@ test('a chosen sense is what the card asks about', async () => {
 
   window.history.replaceState({}, '', '/');
   render(<App />);
-  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
-  fireEvent.click(screen.getByRole('button', { name: /^Study \d+ words?$/ }));
+  // The review card is on the empty screen; nothing has to be opened first.
+  fireEvent.click(await screen.findByRole('button', { name: /^Study \d+ words?$/ }));
 
   expect(screen.getByText('The one I actually mean.')).toBeInTheDocument();
   expect(screen.queryByText('The common first sense.')).not.toBeInTheDocument();
+  await settle();
 });
 
 test('counts the saved words by box', () => {
@@ -137,8 +141,7 @@ test('shows the box distribution once words are saved', async () => {
 
   window.history.replaceState({}, '', '/');
   render(<App />);
-  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
-
-  expect(screen.getByText('1 word in rotation')).toBeInTheDocument();
+  expect(await screen.findByText('1 word in rotation')).toBeInTheDocument();
   expect(screen.getByText('new')).toBeInTheDocument();
+  await settle();
 });

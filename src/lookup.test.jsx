@@ -119,8 +119,8 @@ test('encodes the search term into the request URL', async () => {
   render(<App />);
   search('  A B/C  ');
 
-  await waitFor(() => expect(global.fetch).toHaveBeenCalled());
-  expect(global.fetch.mock.calls[0][0]).toBe(
+  await waitFor(() => expect(dictionaryCalls().length).toBeGreaterThan(0));
+  expect(dictionaryCalls()[0][0]).toBe(
     'https://api.dictionaryapi.dev/api/v2/entries/en/a%20b%2Fc'
   );
   await settle();

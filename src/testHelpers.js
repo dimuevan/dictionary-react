@@ -1,6 +1,15 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 
 import { resetPrimaryBreaker } from './useDictionary';
+import { wordOfTheDay } from './wordOfTheDay';
+
+/**
+ * The empty screen fetches a definition for the word of the day, so requests
+ * for it are not the reader searching for anything. Both counters below ignore
+ * them; a test that wants to look at that request can read fetch.mock.calls.
+ */
+const daily = wordOfTheDay();
+const isDaily = (url) => url.toLowerCase().endsWith(`/${daily}`);
 
 /**
  * What every file of tests here shares: a word to answer with, a way to answer
@@ -32,19 +41,26 @@ export const mockJson = (payload, { ok = true, status = 200 } = {}) =>
 
 /** Only the calls to the dictionary itself, ignoring the optional extras. */
 export const dictionaryCalls = () =>
-  global.fetch.mock.calls.filter(([url]) => String(url).includes('dictionaryapi.dev'));
+  global.fetch.mock.calls.filter(
+    ([url]) => String(url).includes('dictionaryapi.dev') && !isDaily(String(url))
+  );
 
 /**
  * Which lookup sources were asked, in order. Naming them explicitly matters:
  * the page also talks to Datamuse and to Wiktionary's parse API for the extras,
  * and counting those as lookups made these assertions depend on timing.
  */
+/** Every URL asked for, minus the word-of-the-day card's own request. */
+export const requestedUrls = () =>
+  global.fetch.mock.calls.map(([url]) => String(url)).filter((url) => !isDaily(url));
+
 export const lookupSources = () =>
   global.fetch.mock.calls
     .map(([url]) => String(url))
     .filter(
       (url) =>
-        url.includes('dictionaryapi.dev') || url.includes('/api/rest_v1/page/definition')
+        (url.includes('dictionaryapi.dev') || url.includes('/api/rest_v1/page/definition')) &&
+        !isDaily(url)
     )
     .map((url) => (url.includes('wiktionary.org') ? 'wiktionary' : 'primary'));
 

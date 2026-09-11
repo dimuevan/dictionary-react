@@ -145,14 +145,10 @@
   }
   
   .play-icon {
-    width: 0;
-    height: 0;
-    border-left: 12px solid transparent;
-    border-right: 12px solid transparent;
-    border-bottom: 20px solid #a543e8;
-    transform: rotate(90deg);
-    margin-left: 6px;
-    margin-top: 1px;
+    color: var(--accent-text);
+    /* An optical centre, not a geometric one: a triangle looks off-centre when
+       its bounding box is centred. */
+    margin-left: 3px;
   }
   
   /* Keyframes for pulse animation */
@@ -272,10 +268,8 @@ ul li::marker {
       height: 60px;
     }
     .play-icon {
-      border-left: 9px solid transparent;
-      border-right: 9px solid transparent;
-      border-bottom: 15px solid #a543e8;
-      margin-left: 4px;
+      width: 21px;
+      height: 21px;
     }
     .word-header {
       margin-bottom: 20px;
@@ -484,15 +478,12 @@ ul li::marker {
   }
 
   .show-all-mark {
-    font-size: 13px;
-    width: 17px;
-    height: 17px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+    flex: none;
+    align-self: center;
+    padding: 2px;
     border: 1px solid currentColor;
     border-radius: 50%;
-    opacity: 0.8;
+    opacity: 0.85;
   }
 
   .show-all:hover { color: var(--accent-text); }
@@ -530,7 +521,10 @@ ul li::marker {
     transition: color 0.18s;
   }
 
-  .sense-mark { font-size: 13px; }
+  .sense-mark {
+    flex: none;
+    align-self: center;
+  }
 
   .sense-button:hover { color: var(--accent-text); }
 

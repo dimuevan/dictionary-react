@@ -79,7 +79,10 @@ code {
      opacity that happens to look right in the theme it was written in. */
   --text-muted-light: #6b6b6b;
   --text-muted-dark: #a8a8a8;
-  --accent-text-light: #a543e8;
+  /* The brand purple reads on white at 4.6:1 — but the cards sit on the search
+     bar's fill, which is a shade darker, and there it fails. One step down
+     clears both surfaces with room to spare. */
+  --accent-text-light: #9a36dd;
   --accent-text-dark: #bf8ae8;
   --positive-light: #2f7d5c;
   --positive-dark: #4fae83;
@@ -156,6 +159,35 @@ body.font-mono {
 .pill-button:focus-visible {
   outline: 2px solid var(--accent-text);
   outline-offset: 3px;
+}
+
+/* A word you can pick up: the spelling suggestions after a miss, and the way
+   out of an empty study queue. */
+.chip {
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-color);
+  background: var(--background-search);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 10px 18px 11px;
+  cursor: pointer;
+  transition: color 0.18s, border-color 0.18s;
+}
+
+.chip:hover {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip { transition: none; }
 }
 
 /* The quiet counterpart: a link that is a button, in the page's own type. */

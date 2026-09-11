@@ -47,6 +47,6 @@ test('opens with the network unplugged', async ({ page, context }) => {
   // The whole app, not just an HTML shell: the search box only exists once the
   // cached bundle has run.
   await expect(page.locator('.search-input')).toBeVisible();
-  await expect(page.getByText('Enter a word to get started')).toBeVisible();
+  await expect(page.locator('.card--daily')).toBeVisible();
   await expect(page.locator('.daily-word')).toBeVisible();
 });

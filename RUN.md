@@ -47,7 +47,8 @@ npm start
 3. Πάτα ένα συνώνυμο για να ανοίξει σαν νέα αναζήτηση, μετά το «πίσω» του browser
 4. Γύρνα τον διακόπτη πάνω δεξιά για dark mode
 5. Γράψε μια ανύπαρκτη λέξη (π.χ. `zzzzqqq`) — εμφανίζεται μαύρο toast «Word not found»
-6. Γύρνα στην αρχική — οι πρόσφατες λέξεις σε περιμένουν ως chips
+6. Γύρνα στην αρχική — κάρτες: λέξη της ημέρας με ορισμό, τι είναι για επανάληψη,
+   και οι πρόσφατες και αποθηκευμένες λέξεις με μια γραμμή ορισμού η καθεμία
 
 ---
 
@@ -158,6 +159,8 @@ src/
 ├── etymology.js        # η ενότητα «Origin», από σελίδα του Wiktionary
 ├── wordCache.js        # αποθηκευμένες λέξεις — και το ιστορικό μαζί
 ├── extrasCache.js      # ετυμολογία, συχνότητα και ρίμες δίπλα τους
+├── Home.jsx / .css     # οι κάρτες της αρχικής οθόνης
+├── useWordPreview.js   # ορισμός για τη λέξη της ημέρας, εκτός ιστορικού
 ├── favourites.js       # αστεράκια, export σε CSV και Anki
 ├── studySchedule.js    # κουτιά Leitner για την επανάληψη
 ├── backup.js           # export/restore σε JSON
@@ -169,13 +172,12 @@ src/
 ├── WordDisplay.jsx     # ομαδοποίηση σημασιών, προφορά, ρίμες, ετυμολογία
 ├── StudyCards.jsx      # οι κάρτες επανάληψης
 ├── StudyProgress.jsx   # η κατανομή στα κουτιά
-├── RecentWords.jsx     # πρόσφατες και αποθηκευμένες λέξεις
-├── testHelpers.jsx     # ο κοινός εξοπλισμός των tests
+├── testHelpers.js      # ο κοινός εξοπλισμός των tests
 ├── *.test.jsx          # τα unit tests, ανά θέμα
 └── …                   # Header, ErrorBoundary, ResultSkeleton, icons, stylesheets
 
 e2e/                    # οι έλεγχοι σε πραγματικό browser
-scripts/                # check-apis.mjs, check-build.mjs
+scripts/                # check-apis.mjs, check-build.mjs, check-performance.mjs, make-social-card.mjs
 public/service-worker.js # το app shell που ανοίγει χωρίς δίκτυο
 public/fonts/           # η Lora, από εδώ και όχι από το Google Fonts
 ```

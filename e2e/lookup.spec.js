@@ -107,9 +107,9 @@ test('saving a word puts it under Saved, ready to study', async ({ page }) => {
 
   await page.click('[aria-label="Save this word"]');
   await page.goto('/');
-  await page.click('[role="tab"]:has-text("Saved")');
 
-  await expect(page.locator('.recent-list .chip')).toHaveText(['keyboard']);
+  // The saved card is on the empty screen; nothing has to be opened first.
+  await expect(page.locator('.card--saved .word-row-term')).toHaveText(['keyboard']);
   await page.click('.pill-button:has-text("Study")');
   await expect(page.locator('.study-definition')).toBeVisible();
 });

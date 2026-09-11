@@ -3,6 +3,7 @@ import './WordDisplay.css'; // CSS file for styling
 import { useEffect, useState } from 'react';
 
 import { DEFAULT_LANGUAGE } from './languages';
+import { CheckIcon, DownloadIcon, LinkIcon, PlayIcon, PlusIcon, StarIcon } from './icons';
 import { readExtra, writeExtra } from './extrasCache';
 import { fetchEtymology } from './etymology';
 import { fetchFrequency, fetchRelatedWords } from './datamuse';
@@ -323,7 +324,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
             aria-pressed={starred}
             aria-label={starred ? 'Remove from saved words' : 'Save this word'}
           >
-            {starred ? '★' : '☆'}
+            <StarIcon filled={starred} width={19} height={19} />
           </button>
 
           <button
@@ -332,7 +333,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
             onClick={handleCopy}
             aria-label="Copy link to this word"
           >
-            {copied ? '✓' : '⧉'}
+            {copied ? <CheckIcon width={19} height={19} /> : <LinkIcon width={19} height={19} />}
           </button>
 
           <button
@@ -341,7 +342,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
             onClick={handleShareImage}
             aria-label="Download this word as an image"
           >
-            ⬇
+            <DownloadIcon width={19} height={19} />
           </button>
 
           {pronunciation && (
@@ -351,7 +352,7 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
               onClick={() => play(pronunciations.indexOf(pronunciation))}
               aria-label="Play pronunciation"
             >
-              <span className="play-icon" aria-hidden="true"></span>
+              <PlayIcon width={26} height={26} className="play-icon" />
             </button>
           )}
         </div>
@@ -381,9 +382,12 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
                   onClick={() => chooseSense(def.definition)}
                   aria-pressed={studySense === def.definition}
                 >
-                  <span className="sense-mark" aria-hidden="true">
-                    {studySense === def.definition ? '★' : '☆'}
-                  </span>
+                  <StarIcon
+                    className="sense-mark"
+                    filled={studySense === def.definition}
+                    width={14}
+                    height={14}
+                  />
                   {studySense === def.definition ? 'Studying this sense' : 'Study this sense'}
                 </button>
               </li>
@@ -401,9 +405,12 @@ const WordDisplay = ({ wordData, onSelectWord = () => {}, lang = DEFAULT_LANGUAG
                 }))
               }
             >
-              <span className="show-all-mark" aria-hidden="true">
-                {expanded[group.partOfSpeech] ? '−' : '+'}
-              </span>
+              <PlusIcon
+                className="show-all-mark"
+                open={Boolean(expanded[group.partOfSpeech])}
+                width={17}
+                height={17}
+              />
               {expanded[group.partOfSpeech]
                 ? 'Show fewer'
                 : `Show all ${group.definitions.length} definitions`}

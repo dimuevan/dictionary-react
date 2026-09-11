@@ -90,6 +90,7 @@ test('remembers the chosen typeface', async () => {
   render(<App />);
   expect(screen.getByLabelText('Typeface')).toHaveValue('mono');
   expect(document.body.className).toContain('font-mono');
+  await settle();
 });
 
 test('/ focuses the search box and Escape empties it', async () => {
@@ -104,9 +105,10 @@ test('/ focuses the search box and Escape empties it', async () => {
   fireEvent.change(input, { target: { value: 'keyboard' } });
   fireEvent.keyDown(input, { key: 'Escape' });
   expect(input).toHaveValue('');
+  await settle();
 });
 
-test('preferences survive a reload, together', () => {
+test('preferences survive a reload, together', async () => {
   const { unmount } = render(<App />);
 
   fireEvent.click(screen.getByRole('checkbox', { name: 'Toggle dark mode' }));
@@ -116,4 +118,5 @@ test('preferences survive a reload, together', () => {
 
   render(<App />);
   expect(document.body.className).toBe('dark font-sans');
+  await settle();
 });

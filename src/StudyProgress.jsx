@@ -12,7 +12,7 @@ const BOX_LABELS = ['new', '1 day', '3 days', '7 days', '3 weeks'];
  * the counts are written in ink beside the bars, so the colour is never the only
  * thing carrying the information.
  */
-const StudyProgress = ({ counts }) => {
+const StudyProgress = ({ counts, caption = true, note = true }) => {
   const total = counts.reduce((sum, count) => sum + count, 0);
   if (!total) return null;
 
@@ -21,11 +21,13 @@ const StudyProgress = ({ counts }) => {
 
   return (
     <figure className="progress">
-      <figcaption className="progress-caption">
-        {settled > 0
-          ? `${settled} of ${total} ${settled === 1 ? 'word is' : 'words are'} sticking`
-          : `${total} ${total === 1 ? 'word' : 'words'} in rotation`}
-      </figcaption>
+      {caption && (
+        <figcaption className="progress-caption">
+          {settled > 0
+            ? `${settled} of ${total} ${settled === 1 ? 'word is' : 'words are'} sticking`
+            : `${total} ${total === 1 ? 'word' : 'words'} in rotation`}
+        </figcaption>
+      )}
 
       <ul className="progress-rows">
         {counts.map((count, index) => (
@@ -42,10 +44,12 @@ const StudyProgress = ({ counts }) => {
         ))}
       </ul>
 
-      <p className="progress-note">
-        A word moves up a box each time you recall it, and comes back after{' '}
-        {INTERVAL_DAYS.slice(1).join(', ')} days.
-      </p>
+      {note && (
+        <p className="progress-note">
+          A word moves up a box each time you recall it, and comes back after{' '}
+          {INTERVAL_DAYS.slice(1).join(', ')} days.
+        </p>
+      )}
     </figure>
   );
 };

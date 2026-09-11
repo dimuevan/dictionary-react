@@ -83,7 +83,7 @@ test('Tab walks the entry in the order it is read', async ({ page }) => {
     'button: Copy link to this word',
     'button: Download this word as an image',
     'button: Play pronunciation',
-    'button: ☆Study this sense',
+    'button: Study this sense',
     'button: piano',
     'a: https://en.wiktionary.org/wi',
     'nothing',

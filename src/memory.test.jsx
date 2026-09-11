@@ -6,6 +6,7 @@ import { restoreBackup } from './backup';
 import { stateFor } from './studySchedule';
 import {
   dictionaryCalls,
+  requestedUrls,
   entry,
   mockJson,
   search,
@@ -81,9 +82,7 @@ test('keeps a saved entry on screen when a refresh 404s, but never fetches one',
   expect(screen.queryByText(/No results for/)).not.toBeInTheDocument();
   // Nothing stale is advertised, and the fallback is never consulted for a 404.
   expect(screen.queryByText(/this is the copy saved/i)).not.toBeInTheDocument();
-  expect(
-    global.fetch.mock.calls.every(([url]) => !/wiktionary\.org\/api\/rest_v1/.test(String(url)))
-  ).toBe(true);
+  expect(requestedUrls().every((url) => !/wiktionary\.org\/api\/rest_v1/.test(url))).toBe(true);
   await settle();
 });
 
@@ -96,16 +95,19 @@ test('offers recently looked-up words on the empty screen, and can forget them',
   window.history.replaceState({}, '', '/');
   render(<App />);
 
-  const chip = await screen.findByRole('button', { name: 'keyboard' });
-  fireEvent.click(chip);
+  // The row carries the word and as much of its definition as fits.
+  const row = await screen.findByRole('button', { name: /^keyboard A set of keys/ });
+  fireEvent.click(row);
   expect(await screen.findByRole('heading', { name: 'keyboard' })).toBeInTheDocument();
   expect(window.location.search).toBe('?w=keyboard');
   await settle();
 });
 
-test('shows no recent words before anything has been looked up', () => {
+test('says so when nothing has been looked up yet', async () => {
   render(<App />);
-  expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+  expect(screen.getByText('Nothing looked up yet.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /^keyboard/ })).not.toBeInTheDocument();
+  await settle();
 });
 
 test('clearing the recent words empties the list', async () => {
@@ -117,9 +119,12 @@ test('clearing the recent words empties the list', async () => {
   window.history.replaceState({}, '', '/');
   render(<App />);
 
-  await screen.findByText('Recent');
+  await screen.findByRole('button', { name: /^keyboard A set of keys/ });
   fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
-  expect(screen.queryByText('Recent')).not.toBeInTheDocument();
+
+  expect(screen.queryByRole('button', { name: /^keyboard A set of keys/ })).not.toBeInTheDocument();
+  expect(screen.getByText('Nothing looked up yet.')).toBeInTheDocument();
+  await settle();
 });
 
 test('saves a word, offers it under Saved, and lets it be removed', async () => {
@@ -133,10 +138,11 @@ test('saves a word, offers it under Saved, and lets it be removed', async () => 
 
   window.history.replaceState({}, '', '/');
   render(<App />);
-  fireEvent.click(await screen.findByRole('tab', { name: /Saved/ }));
 
-  fireEvent.click(screen.getByRole('button', { name: 'Remove keyboard' }));
-  expect(screen.getByText(/Star a word while reading it/)).toBeInTheDocument();
+  // Saved words have a card of their own; nothing has to be opened to see them.
+  fireEvent.click(await screen.findByRole('button', { name: 'Remove keyboard' }));
+  expect(screen.getByText(/words you star while reading collect here/i)).toBeInTheDocument();
+  await settle();
 });
 
 test('keeps each language its own entry in the saved words', async () => {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import ErrorBoundary from './ErrorBoundary';
 import Header from './Header';
-import RecentWords from './RecentWords';
+import Home from './Home';
 import ResultSkeleton from './ResultSkeleton';
 import Search from './Search';
 import WordDisplay from './WordDisplay';
@@ -12,7 +12,6 @@ import useDictionary from './useDictionary';
 import usePreferences from './usePreferences';
 import useSuggestions from './useSuggestions';
 import useWordRequest from './useWordRequest';
-import { wordOfTheDay } from './wordOfTheDay';
 
 const savedAgo = (timestamp) => {
   const minutes = Math.round((Date.now() - timestamp) / 60000);
@@ -75,7 +74,6 @@ const App = () => {
   const suggestions = useSuggestions(error, request);
 
   const [showErrorClass, setShowErrorClass] = useState(false);
-  const daily = wordOfTheDay();
 
   // Show the toast, then slide it away. Keyed on the nonce too, so two searches
   // that fail the same way still each get their own toast.
@@ -107,21 +105,10 @@ const App = () => {
       />
 
       {/* A landmark, so a screen reader can skip the header and start reading. */}
-      <main className='searchWrapper'>
+      <main className={`searchWrapper${status === 'idle' ? ' is-home' : ''}`}>
         <Search onSearch={search} term={request.term} lang={request.lang} />
 
-        {status === 'idle' && (
-          <>
-            <p className="placeholder-text">Enter a word to get started</p>
-            <p className="daily">
-              Word of the day:{' '}
-              <button type="button" className="daily-word" onClick={() => search(daily)}>
-                {daily}
-              </button>
-            </p>
-            <RecentWords onSelect={search} />
-          </>
-        )}
+        {status === 'idle' && <Home onSelect={search} />}
 
         {status === 'loading' && <ResultSkeleton />}
 

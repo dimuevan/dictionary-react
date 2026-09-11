@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, act } from '@testing-library/react'
 import App from './App';
 import {
   entry,
+  requestedUrls,
   failPrimaryThen,
   lookupSources,
   mockJson,
@@ -194,7 +195,7 @@ test('does not consult Wiktionary when the word simply does not exist', async ()
 
   await screen.findByText(/No results for/);
   // The dictionary is asked once; only the spelling-suggestion service follows.
-  const hosts = global.fetch.mock.calls.map(([url]) => new URL(String(url)).hostname);
+  const hosts = requestedUrls().map((url) => new URL(url).hostname);
   expect(hosts).not.toContain('en.wiktionary.org');
   expect(hosts.filter((host) => host === 'api.dictionaryapi.dev')).toHaveLength(1);
 });
@@ -262,6 +263,6 @@ test('a suggestion service that is down costs the reader nothing', async () => {
   search('zzzzqqq');
 
   expect(await screen.findByText(/No results for/)).toBeInTheDocument();
-  await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(requestedUrls()).toHaveLength(2));
   expect(screen.queryByText('Did you mean')).not.toBeInTheDocument();
 });

@@ -45,6 +45,12 @@ a {
   z-index: 1;
 }
 
+/* The empty screen is a grid of cards, which needs more room than a column of
+   text does. The search bar keeps its own width inside it. */
+.searchWrapper.is-home {
+  max-width: 1080px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .error-message {
     transition: none;
@@ -115,33 +121,6 @@ a {
 .cache-notice .retry-button {
   font-size: 14px;
   padding: 6px 16px;
-}
-
-.daily {
-  margin: 14px 0 0;
-  font-size: 15px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.daily-word {
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: 700;
-  color: var(--accent-text);
-  background: none;
-  border: none;
-  padding: 0 2px;
-  cursor: pointer;
-  text-underline-offset: 4px;
-}
-
-.daily-word:hover { text-decoration: underline; }
-
-.daily-word:focus-visible {
-  outline: 2px solid #a543e8;
-  outline-offset: 3px;
-  border-radius: 3px;
 }
 
 .suggestions {

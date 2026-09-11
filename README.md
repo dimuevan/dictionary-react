@@ -29,7 +29,13 @@ A source that fails is set aside for a minute, so the next search does not pay i
 timeout again. A word already seen opens from storage immediately and refreshes
 behind the scenes.
 
-**Remembers.** Every lookup is saved; the empty screen offers the recent ones.
+**Opens onto something.** Before you search, the screen is a set of cards: a
+word of the day with its definition, what is due for review and how the saved
+words sit across the Leitner boxes, and the recent and saved words — each with
+as much of its meaning as fits on the line. All of it but the word of the day
+comes from storage, so it is there before the network is.
+
+**Remembers.** Every lookup is saved; the cards offer the recent ones.
 Star the ones you mean to keep, study them as flashcards on a Leitner schedule,
 and export to CSV, to Anki, or as a JSON backup you can restore on another machine.
 Origins, frequencies and rhymes are kept alongside the entry, so a word you have
@@ -95,6 +101,8 @@ src/
 ├── etymology.js        # the Origin section, read out of a Wiktionary page
 ├── wordCache.js        # saved entries, which double as the history
 ├── extrasCache.js      # and the origins, frequencies and rhymes beside them
+├── Home.jsx            # the cards before a search
+├── useWordPreview.js   # a definition for the word of the day, off the history
 ├── testHelpers.jsx     # the harness the six test files share
 ├── favourites.js       # starred words, CSV and Anki export
 ├── studySchedule.js    # Leitner boxes

@@ -82,15 +82,15 @@ for (const theme of ['light', 'dark']) {
 
     await page.click('[aria-label="Save this word"]');
 
-    // The empty screen, with a history and a saved word on it.
+    // The empty screen: the cards, with a history and a saved word in them.
     await page.goto('/');
     await expect(page.locator('.search-input')).toBeVisible();
-    await expect(page.locator('.chip').first()).toBeVisible();
+    await expect(page.locator('.card--daily .daily-definition')).toBeVisible();
+    await expect(page.locator('.word-row-open').first()).toBeVisible();
     expect(await barriers(page)).toEqual([]);
 
-    // And the cards.
-    await page.click('.recent-tab >> nth=1');
-    await page.click('text=Study');
+    // And the flashcards.
+    await page.click('.pill-button');
     await expect(page.locator('.study')).toBeVisible();
     expect(await barriers(page)).toEqual([]);
 

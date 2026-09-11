@@ -1,0 +1,352 @@
+/*
+ * The screen before a search. It used to be two tabs of bare chips and a row of
+ * underlined links — a list of words with nothing to say about any of them.
+ *
+ * Now it is four cards, each carrying the content it is about: a word to read
+ * today with its definition, what is due for review, and the words already
+ * looked up or kept, each with as much of its meaning as fits on a line.
+ *
+ * One surface, one radius, one border: the cards are the only new shape, and
+ * they borrow the fill the search bar already uses.
+ */
+.home {
+  width: 100%;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 30px;
+  text-align: left;
+}
+
+@media (min-width: 700px) {
+  .home {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .card--daily,
+  .home-utilities {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Wide enough for the hero and the review to sit side by side. */
+@media (min-width: 1020px) {
+  .home {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .card--daily {
+    grid-column: span 2;
+  }
+
+  .card--review {
+    grid-column: 3;
+    grid-row: span 2;
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 22px 24px 24px;
+  background: var(--background-search);
+  border: 1px solid var(--hairline);
+  border-radius: 20px;
+}
+
+.card-label {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.card-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  padding: 1px 8px 2px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+.card-empty {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* The quiet "go on then" at the foot of a card. */
+.card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding: 4px 0 0;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--accent-text);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: gap 0.18s;
+}
+
+.card-action:hover { gap: 12px; }
+
+.card-action:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* --- the word of the day ------------------------------------------------- */
+
+.daily-word {
+  font-family: inherit;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text-color);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 2px 0 0;
+  cursor: pointer;
+  text-underline-offset: 6px;
+  transition: color 0.18s;
+}
+
+.daily-word:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+}
+
+.daily-word:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.daily-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.daily-phonetic {
+  font-family: system-ui, sans-serif;
+  letter-spacing: 1px;
+  color: var(--accent-text);
+}
+
+.daily-pos { font-style: italic; }
+
+.daily-definition {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--text-color);
+  max-width: 46em;
+}
+
+/* Two lines of nothing, so the card does not change height when the
+   definition arrives. */
+.daily-definition.is-waiting {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.daily-definition.is-waiting .line {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: rgb(128 128 128 / 18%);
+}
+
+.daily-definition.is-waiting .line:last-child { width: 62%; }
+
+/* --- review -------------------------------------------------------------- */
+
+.review-count {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+.review-count strong {
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text-color);
+  margin-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The card is tall because it spans the grid's two rows; the strip sits at the
+   foot of it so the card reads top-to-bottom instead of trailing off. */
+.card--review .progress {
+  max-width: none;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 10px;
+}
+
+.card--review .progress-caption {
+  text-align: left;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.card--review .pill-button { margin-bottom: 2px; }
+
+/* --- the word lists ------------------------------------------------------ */
+
+.word-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.word-rows li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  line-height: normal;
+}
+
+.word-rows li + li { border-top: 1px solid var(--hairline); }
+
+.word-row-open {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 11px 4px 12px 0;
+  font-family: inherit;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  transition: color 0.18s;
+}
+
+.word-row-open:hover { color: var(--accent-text); }
+
+.word-row-open:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+.word-row-term {
+  font-size: 17px;
+  flex: none;
+}
+
+.word-row-lang {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex: none;
+}
+
+/* One line of it. The whole definition is a click away. */
+.word-row-definition {
+  font-size: 14px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.word-row-forget {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 0.18s, background-color 0.18s;
+}
+
+.word-row-forget:hover {
+  color: var(--accent-text);
+  background: var(--background-color);
+}
+
+.word-row-forget:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: -2px;
+}
+
+.card-tools {
+  display: flex;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 2px;
+}
+
+.card-tools .quiet-button + .quiet-button::before {
+  content: "·";
+  margin: 0 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+/* --- the things you do to all of it ------------------------------------- */
+
+.home-utilities {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.home-utilities .quiet-button + .quiet-button::before {
+  content: "·";
+  margin: 0 11px;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.home-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-action,
+  .daily-word,
+  .word-row-open,
+  .word-row-forget {
+    transition: none;
+  }
+}
